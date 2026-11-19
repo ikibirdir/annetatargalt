@@ -15,15 +15,16 @@ export const form = (page: Page) => ({
   amount: (euros: number) => page.getByRole("radio", { name: `${euros}€` }),
   otherAmount: page.getByRole("radio", { name: "Other amount option text" }),
   otherAmountInput: page.getByRole("textbox", { name: "Other amount text" }),
-  /**
-   * A cause's box, by its title, or support for the platform's ("Support
-   * option text"). Its name goes on with its share and amount.
-   */
+  /** A cause's box, by its title. Its name goes on with its share and amount. */
   choice: (title: string) =>
     page.locator("form").getByRole("checkbox", { name: startingWith(title) }),
-  support: page
-    .locator("form")
-    .getByRole("checkbox", { name: startingWith("Support option text") }),
+  /**
+   * The box adding support for the platform on top of the donation, beside
+   * the total. Its name goes on with what it adds.
+   */
+  tip: page.getByRole("checkbox", { name: startingWith("Tip checkbox text") }),
+  /** Once it's ticked: the way to a bigger share than 5%. */
+  tipMore: page.getByRole("button", { name: "Tip more text" }),
   /** The way to a cause's charities, while it's the fund alone. */
   specify: (cause: string) =>
     page.getByRole("button", { name: `Specify charities text: ${cause}` }),
@@ -32,7 +33,6 @@ export const form = (page: Page) => ({
     page.getByRole("button", { name: `Edit charities text: ${cause}` }),
   /** On to the details: "Next button text". */
   next: page.getByRole("button", { name: "Next button text" }),
-  resetSplit: page.getByRole("button", { name: "Reset split text" }),
   splitEvenly: page.getByRole("button", { name: "Split evenly text" }),
   /** The split bar's handles, from the left. */
   borders: page.getByRole("slider"),
@@ -57,7 +57,7 @@ export const form = (page: Page) => ({
   summary: page.getByRole("complementary", { name: "Overview title" }),
 });
 
-/** A cause's or support's share, as its box shows it: "50%". */
+/** A cause's share, as its box shows it: "50%". */
 export async function shareOf(page: Page, title: string) {
   const box = form(page).choice(title);
   const id = await box.getAttribute("id");

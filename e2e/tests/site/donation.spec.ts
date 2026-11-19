@@ -18,7 +18,6 @@ import { choose, clickToOpen } from "../../helpers/page.ts";
 
 const HEALTH = CAUSES.health.title;
 const CLIMATE = CAUSES.climate.title;
-const SUPPORT = "Support option text";
 
 /** Moves the split bar's first border this many percent to the right. */
 async function moveFirstBorder(page: Page, percent: number) {
@@ -68,7 +67,9 @@ test.describe("one-off donation", () => {
     expect(confirmation.text).toMatch(/api\/email-settings\?locale=et#token=/);
   });
 
-  test("with another amount and support for the platform", async ({ page }) => {
+  test("with another amount and support for the platform on top", async ({
+    page,
+  }) => {
     const email = uniqueEmail();
     await page.goto("/anneta");
     const f = form(page);
@@ -76,28 +77,29 @@ test.describe("one-off donation", () => {
     await choose(f.otherAmount);
     await f.otherAmountInput.fill("40");
     await choose(f.choice(HEALTH));
-    await choose(f.support);
+    // The way to more than 5% shows once the box is ticked.
+    await expect(f.tipMore).toHaveCount(0);
+    await choose(f.tip);
+    await expect(f.tipMore).toBeVisible();
 
-    // 5% of the amount to the platform, the rest to the cause: the total
-    // stays the amount.
-    await expect.poll(() => shareOf(page, HEALTH)).toBe("95%");
-    await expect.poll(() => shareOf(page, SUPPORT)).toBe("5%");
-    await expect(f.summary).toContainText(SUPPORT);
-    await expect(f.summary).toContainText("2,00€");
-    await expect(f.summary).toContainText("40,00€");
+    // 5% on top, to the platform: the cause keeps all of the amount.
+    await expect.poll(() => shareOf(page, HEALTH)).toBe("100%");
+    await expect(f.summary).toContainText(ORGS.tip.title);
+    await expect(f.summary).toContainText("+2,00€");
+    await expect(f.summary).toContainText("42,00€");
 
     await f.next.click();
-    await fillDetails(page, { firstName: "Tõnu", lastName: "Tugi", email });
+    await fillDetails(page, { firstName: "Tõnu", lastName: "Tipp", email });
     await f.terms.check();
     await f.donate.click();
-    await expect(page.getByTestId("amount")).toHaveText("40.00 EUR");
+    await expect(page.getByTestId("amount")).toHaveText("42.00 EUR");
     await payAtBank(page);
     await expect(
       page.getByRole("heading", { name: /Thank you, Tõnu/ }),
     ).toBeVisible();
 
     const confirmation = await waitForEmail(email, TEXT.confirmationSubject);
-    expect(confirmation.text).toContain(`${ORGS.fund.title}: 38€`);
+    expect(confirmation.text).toContain(`${ORGS.fund.title}: 40€`);
     expect(confirmation.text).toContain(`${ORGS.tip.title}: 2€`);
   });
 
@@ -262,45 +264,83 @@ test.describe("where the donation goes", () => {
     expect(donation.amounts).toHaveLength(2);
   });
 
-  test("gives support all of it on its own, and 5% beside a cause", async ({
+  test("offers a bigger share for the platform, or one of the donor's own", async ({
     page,
   }) => {
     await page.goto("/anneta");
     const f = form(page);
-    await choose(f.support);
-    await expect.poll(() => shareOf(page, SUPPORT)).toBe("100%");
-    await expect(f.next).toBeEnabled();
-    await expect(f.summary).toContainText(SUPPORT);
-
+    await choose(f.single);
     await choose(f.choice(HEALTH));
-    await expect.poll(() => shareOf(page, HEALTH)).toBe("95%");
-    await expect.poll(() => shareOf(page, SUPPORT)).toBe("5%");
+    await choose(f.tip);
+    await f.tipMore.click();
+
+    const shares = page.getByRole("dialog", { name: "Support the platform" });
+    const confirm = shares.getByRole("button", {
+      name: "Charities confirm text",
+    });
+    await expect(shares.getByRole("radio", { name: /^5%/ })).toBeChecked();
+    await choose(shares.getByRole("radio", { name: /^10%/ }));
+    await confirm.click();
+    await expect(shares).toBeHidden();
+    // 10% of 30
+    await expect(f.summary).toContainText("+3,00€");
+    await expect(f.summary).toContainText("33,00€");
+
+    await f.tipMore.click();
+    await choose(
+      shares.getByRole("radio", { name: "Other amount option text" }),
+    );
+    const own = shares.getByRole("textbox", { name: "Protsent" });
+    await own.fill("0");
+    await expect(confirm).toBeDisabled();
+    await own.fill("7,5");
+    await expect(confirm).toBeEnabled();
+    await confirm.click();
+    await expect(f.summary).toContainText("+2,25€");
+    await expect(f.summary).toContainText("32,25€");
+
+    await f.next.click();
+    await fillDetails(page, {
+      firstName: "Toomas",
+      lastName: "Toetaja",
+      email: uniqueEmail(),
+    });
+    await f.terms.check();
+    const sent = page.waitForRequest((request) =>
+      request.url().endsWith("/api/donate"),
+    );
+    await f.donate.click();
+    const donation = (await sent).postDataJSON();
+    expect(donation.amount).toBe(3225);
+    expect(donation.amounts).toEqual(
+      expect.arrayContaining([
+        { organizationInternalId: ORGS.fund.internalId, amount: 3000 },
+        { organizationInternalId: ORGS.tip.internalId, amount: 225 },
+      ]),
+    );
+    expect(donation.amounts).toHaveLength(2);
   });
 
-  test("keeps a split the donor adjusted as choices come and go", async ({
+  test("lets the donor adjust the split, and start it over", async ({
     page,
   }) => {
     await page.goto("/anneta");
     const f = form(page);
     await choose(f.choice(HEALTH));
     await choose(f.choice(CLIMATE));
+    await expect(f.splitEvenly).toHaveCount(0);
     await moveFirstBorder(page, 20);
     await expect(f.borders.first()).toHaveAttribute(
       "aria-valuetext",
       `${HEALTH} 70%, ${CLIMATE} 30%`,
     );
+    await expect.poll(() => shareOf(page, HEALTH)).toBe("70%");
+    await expect(f.summary).toContainText("21,00€");
 
-    // Support gets its 5%, the causes keep their proportions in the rest.
-    await choose(f.support);
-    await expect.poll(() => shareOf(page, HEALTH)).toBe("67%");
-    await expect.poll(() => shareOf(page, CLIMATE)).toBe("28%");
-    await expect.poll(() => shareOf(page, SUPPORT)).toBe("5%");
-
-    await f.resetSplit.click();
-    await expect.poll(() => shareOf(page, HEALTH)).toBe("48%");
-    await expect.poll(() => shareOf(page, CLIMATE)).toBe("47%");
-    await expect.poll(() => shareOf(page, SUPPORT)).toBe("5%");
-    await expect(f.resetSplit).toHaveCount(0);
+    await f.splitEvenly.click();
+    await expect.poll(() => shareOf(page, HEALTH)).toBe("50%");
+    await expect.poll(() => shareOf(page, CLIMATE)).toBe("50%");
+    await expect(f.splitEvenly).toHaveCount(0);
   });
 });
 
@@ -342,6 +382,7 @@ test.describe("the form", () => {
     await choose(f.single);
     await choose(f.amount(60));
     await choose(f.choice(HEALTH));
+    await choose(f.tip);
     await f.next.click();
     await f.firstName.fill("Mälu");
     await page.reload();
@@ -351,6 +392,7 @@ test.describe("the form", () => {
     await expect(f.amount(60)).toBeChecked();
     await expect(f.single).toBeChecked();
     await expect(f.choice(HEALTH)).toBeChecked();
+    await expect(f.tip).toBeChecked();
   });
 
   test("keeps the split through a change of language", async ({ page }) => {
