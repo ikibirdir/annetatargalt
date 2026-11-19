@@ -42,6 +42,7 @@ import DonationLines from "../elements/forms/DonationLines";
 import DonationOverview from "../elements/forms/DonationOverview";
 import SummaryBar from "../elements/forms/SummaryBar";
 import PaymentMethodChooser from "../elements/forms/PaymentMethodChooser";
+import TipOffer from "../elements/forms/TipOffer";
 import type {
   StrapiDonationSection,
   StrapiGlobal,
@@ -56,7 +57,6 @@ import {
   saveDonationDraft,
 } from "@/utils/donation-draft";
 import type { DonationState } from "@/utils/donation-draft";
-import { splitChoices, supportShare } from "@/utils/donation-amounts";
 
 interface DonationSectionProps extends StrapiDonationSection {
   global: StrapiGlobal;
@@ -178,11 +178,6 @@ function DonationForm({
     })),
   };
 
-  // Support for the platform is chosen like a cause, its share going to the
-  // platform's own organization: what's split is the causes and it.
-  const supportOrganization = props.global.tipOrganizationInternalId;
-  const choices = splitChoices(causes, supportOrganization);
-
   const link = `${linkType}/${linkOrg}`;
   // A link that names one of the organizations starts with its cause chosen,
   // all of it going there. Otherwise nothing is chosen to begin with.
@@ -226,8 +221,10 @@ function DonationForm({
       dedicationEmail: "",
       dedicationMessage: "",
       proportions: linksOrganization
-        ? Proportions.fromStrapiData(choices.data, linkOrg ?? undefined)
-        : Proportions.fromStrapiDataNoneChosen(choices.data),
+        ? Proportions.fromStrapiData(causes.data, linkOrg ?? undefined)
+        : Proportions.fromStrapiDataNoneChosen(causes.data),
+      addTip: false,
+      tipPercent: 5,
       paymentMethod: "paymentInitiation",
       newsletter: true,
       acceptTerms: false,
@@ -252,7 +249,7 @@ function DonationForm({
 
   const [validity, setValidity] = useState<Record<string, boolean>>({});
   const stageValidity: Record<number, boolean> = {
-    // a cause or support chosen
+    // a cause chosen
     0:
       at(validity, ["amount"]).every(Boolean) &&
       donation.proportions.chosenKeys().length > 0,
@@ -307,6 +304,13 @@ function DonationForm({
   }, [stage]);
   const paymentTitleId = useId();
 
+  // Support for the platform, added on top: 5% of the donation unless the
+  // donor chooses more.
+  const tipPercent = donation.tipPercent;
+  // What the share would be, offered whether or not it's added yet.
+  const offeredTip = Math.round(tipPercent * donation.amount) / 100;
+  const tipAmount = donation.addTip ? offeredTip : 0;
+  const totalAmount = Math.round((donation.amount + tipAmount) * 100) / 100;
   const money = (amount: number) =>
     withCurrency(
       formatAmountWithCents(amount, locale),
@@ -329,15 +333,21 @@ function DonationForm({
       // Picks the language of the payment page, the thank-you page and emails.
       locale,
     };
-    // Support comes out of the amount, as one of its lines: the total is the
-    // amount chosen.
-    donationData.amounts = donation.proportions
-      .calculateAmounts(donation.amount, choices)
+    const amountEntries = donation.proportions
+      .calculateAmounts(donation.amount, causes)
       .map(({ organizationInternalId, amount }) => ({
         organizationInternalId,
         amount: Math.round(amount * 100),
       }));
-    donationData.amount = Math.round(donation.amount * 100);
+    // The support, on top of the donation: one more line, to the platform.
+    if (tipAmount > 0 && props.global.tipOrganizationInternalId) {
+      amountEntries.push({
+        organizationInternalId: props.global.tipOrganizationInternalId,
+        amount: Math.round(tipAmount * 100),
+      });
+    }
+    donationData.amounts = amountEntries;
+    donationData.amount = Math.round(totalAmount * 100);
     if (donation.companyDonation) {
       donationData.companyName = donation.companyName;
       donationData.companyCode = donation.companyCode;
@@ -390,7 +400,7 @@ function DonationForm({
     track("donation:submitted", {
       type: donation.type,
       amount: donation.amount,
-      tip_percent: supportShare(donation.proportions),
+      tip_percent: donation.addTip ? tipPercent : 0,
       payment_method: onetime
         ? donation.paymentMethod === "cardPayments"
           ? "card"
@@ -402,7 +412,7 @@ function DonationForm({
     });
   }
 
-  const total = money(donation.amount);
+  const total = money(totalAmount);
   const typeText =
     donation.type === "recurring"
       ? props.recurringDonationText
@@ -482,13 +492,40 @@ function DonationForm({
     </>
   );
 
+  // The support for the platform, offered as a box to tick: 5%, or a bigger
+  // share the donor chooses once it's ticked.
+  const tipOffer = (
+    <TipOffer
+      checkboxText={props.tipCheckboxText}
+      summaryText={props.tipSummaryText}
+      moreText={props.tipMoreText}
+      percent={tipPercent}
+      amountText={money(offeredTip)}
+      addTip={donation.addTip}
+      setAddTip={(addTip) => setDonation({ ...donation, addTip })}
+      setPercent={(chosen) =>
+        setDonation({ ...donation, addTip: true, tipPercent: chosen })
+      }
+      donationAmount={donation.amount}
+      money={money}
+      pickerTexts={{
+        title: props.tipTitle,
+        other: props.otherAmountOptionText,
+        confirm: props.charitiesConfirmText,
+        cancel: props.charitiesCancelText,
+        close: props.global.closeText,
+      }}
+      locale={locale}
+    />
+  );
+
   const lines = (className?: string) => (
     <DonationLines
       amount={donation.amount}
       proportions={donation.proportions}
       causes={causes}
-      supportOrganization={supportOrganization}
-      supportTitle={props.supportOptionText}
+      tipOrganization={props.global.tipOrganization}
+      tipAmount={tipAmount}
       money={money}
       emptyText={props.chooseCauseText}
       className={className}
@@ -666,7 +703,8 @@ function DonationForm({
             />
             <CauseChooser
               causes={causes}
-              supportOrganization={supportOrganization}
+              // Support is offered beside the total, not among the causes.
+              supportOrganization={null}
               proportions={donation.proportions}
               setProportions={(proportions) =>
                 setDonation({ ...donation, proportions })
@@ -696,9 +734,10 @@ function DonationForm({
               }}
               locale={locale}
             />
-            {/* Narrow screens: the total and Next end the form. Wide ones
-                have them in the summary beside it. */}
-            <div className="mt-2 flex flex-col gap-4 lg:hidden">
+            {/* Narrow screens: the 5%, the total and Next end the form. Wide
+                ones have them in the summary beside it. */}
+            <div className="mt-4 flex flex-col gap-4 lg:hidden">
+              {tipOffer}
               {totalLine}
               {next}
             </div>
@@ -713,6 +752,7 @@ function DonationForm({
                 title={props.overviewTitle}
                 typeText={typeText}
                 lines={lines("border-y border-slate-200")}
+                support={tipOffer}
                 totalText={props.global.totalText}
                 total={total}
               >
@@ -736,6 +776,7 @@ function DonationForm({
               typeText={typeText}
               lines={lines("border-y border-slate-200")}
               edit={editDonation}
+              support={tipOffer}
               totalText={props.global.totalText}
               total={total}
             >
@@ -759,6 +800,7 @@ function DonationForm({
             {lines()}
           </SummaryBar>
           <div className="-mt-1 flex">{editDonation}</div>
+          {tipOffer}
           <div className="flex flex-col gap-4">{detailsFields(true)}</div>
           <section
             aria-labelledby={paymentTitleId}
@@ -779,7 +821,7 @@ function DonationForm({
           <Markdown className="prose w-full prose-primary">
             {format(props.recurringDonationGuide ?? "", {
               amount: withCurrency(
-                formatAmount(donation.amount, locale),
+                formatAmount(totalAmount, locale),
                 props.global.currency,
                 locale,
               ),

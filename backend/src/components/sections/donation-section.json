@@ -45,6 +45,12 @@
     "overviewTitle": {
       "type": "string"
     },
+    "tipSummaryText": {
+      "type": "text"
+    },
+    "tipMoreText": {
+      "type": "string"
+    },
     "causesHintText": {
       "type": "string"
     },

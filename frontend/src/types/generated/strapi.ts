@@ -125,7 +125,15 @@ export interface StrapiQuestion {
 
 export interface StrapiSocialMediaLink {
   id: number;
-  type: "facebook" | "instagram" | "twitter" | "youtube" | "tiktok" | "github" | "linkedin" | null;
+  type:
+    | "facebook"
+    | "instagram"
+    | "twitter"
+    | "youtube"
+    | "tiktok"
+    | "github"
+    | "linkedin"
+    | null;
   href: string | null;
 }
 
@@ -236,6 +244,8 @@ export interface StrapiDonationSection {
   singleDonationText: string | null;
   recurringDonationText: string | null;
   overviewTitle: string | null;
+  tipSummaryText: string | null;
+  tipMoreText: string | null;
   causesHintText: string | null;
   notChosenText: string | null;
   supportOptionText: string | null;
