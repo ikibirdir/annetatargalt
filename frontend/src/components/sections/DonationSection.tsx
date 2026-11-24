@@ -94,22 +94,6 @@ export default function DonationSection(props: DonationSectionProps) {
 
 const neverChanges = () => () => {};
 
-/** Wide enough for the checkout to sit beside the form: Tailwind's lg. */
-const wideQuery = "(min-width: 64rem)";
-
-/** False on the server and until the page runs: the narrow layout first. */
-function useWideScreen() {
-  return useSyncExternalStore(
-    (onChange) => {
-      const query = window.matchMedia(wideQuery);
-      query.addEventListener("change", onChange);
-      return () => query.removeEventListener("change", onChange);
-    },
-    () => window.matchMedia(wideQuery).matches,
-    () => false,
-  );
-}
-
 function DonationFormForLink(props: DonationSectionProps) {
   const searchParams = useSearchParams();
   const linkType = searchParams.get("type");
@@ -277,9 +261,6 @@ function DonationForm({
   // draft from when there were more steps picks up on the last.)
   const lastStage = 1;
   const [stage, setStage] = useState(Math.min(initial.stage, lastStage));
-  // Details are laid out differently on narrow screens: one column, the
-  // donation in a summary bar at the top.
-  const wide = useWideScreen();
   const [donated, setDonated] = useState(false);
 
   // Kept as the visitor goes, but only once they change something: just
@@ -439,7 +420,7 @@ function DonationForm({
   // Paying: the bank (monthly) or payment method (one-off), the newsletter,
   // the terms and Donate. On narrow screens Donate also says the total, as
   // the summary bar with it is a long way up by then.
-  const payment = (withTotal: boolean) => (
+  const payment = (
     <>
       {donation.type === "recurring" && (
         <BankChooser
@@ -476,11 +457,6 @@ function DonationForm({
         setValue={(acceptTerms) => setDonation({ ...donation, acceptTerms })}
       />
       <Button
-        text={
-          withTotal
-            ? `${props.donateButtonText ?? ""} ${total}`
-            : props.donateButtonText
-        }
         type="primary"
         size="lg"
         onClick={() => {
@@ -490,7 +466,10 @@ function DonationForm({
         disabled={!canDonate}
         buttonType="button"
         className="mt-2"
-      />
+      >
+        <span className="lg:hidden">{`${props.donateButtonText ?? ""} ${total}`}</span>
+        <span className="hidden lg:inline">{props.donateButtonText}</span>
+      </Button>
       {donation.type === "onetime" &&
         (props.paymentProviderText || props.paymentProviderLogo?.file) && (
           <div className="flex flex-wrap items-center justify-center gap-2 text-center">
@@ -583,17 +562,11 @@ function DonationForm({
     </button>
   );
 
-  // On narrow screens the names share a row, and the summary bar heads the
-  // step: the heading is there for screen readers only.
-  const detailsFields = (narrow: boolean) => (
+  // The names share a row. On narrow screens the summary bar heads the step:
+  // the heading is there for screen readers only.
+  const detailsFields = (
     <>
-      <h2
-        className={
-          narrow
-            ? "sr-only"
-            : "text-2xl font-bold tracking-tight text-primary-700 sm:text-3xl"
-        }
-      >
+      <h2 className="sr-only text-3xl font-bold tracking-tight text-primary-700 lg:not-sr-only">
         {props.detailsText}
       </h2>
       <NameInput
@@ -604,7 +577,7 @@ function DonationForm({
         setFirstName={(firstName) => setDonation({ ...donation, firstName })}
         setLastName={(lastName) => setDonation({ ...donation, lastName })}
         setValidity={setValidity}
-        sideBySide={narrow}
+        sideBySide={true}
         // The step starts with the donation above the fields: a cursor in
         // them would scroll past it and, on a phone, open the keyboard.
         autoFocus={false}
@@ -761,59 +734,57 @@ function DonationForm({
           </div>
         </div>
       )}
-      {!donated && stage === 1 && wide && (
-        <div className="grid w-full max-w-5xl grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-12">
+      {!donated && stage === 1 && (
+        // One layout at every width, arranged by CSS, so that crossing the
+        // wide breakpoint (a tablet turned) keeps the fields as they are,
+        // with what's being typed and the focus. On narrow screens: one
+        // column, the summary bar on top and paying under the fields. On wide
+        // ones: the donation and paying beside them, with a line between.
+        <div className="grid w-full max-w-lg gap-4 lg:max-w-5xl lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-x-12 lg:gap-y-0">
           <form
-            className={classes(formClasses, "pt-16 pb-32")}
+            className={classes(formClasses, "lg:pt-16 lg:pb-32")}
             onSubmit={(event) => event.preventDefault()}
           >
             {back}
-            {detailsFields(false)}
+            <div className="flex flex-col gap-4 lg:hidden">
+              <SummaryBar
+                title={props.overviewTitle}
+                typeText={typeText}
+                total={total}
+              >
+                {lines()}
+              </SummaryBar>
+              <div className="-mt-1 flex">{editDonation}</div>
+            </div>
+            {detailsFields}
           </form>
-          <div className="border-l border-slate-300 pt-16 pb-32 pl-12">
-            <DonationOverview
-              title={props.overviewTitle}
-              typeText={typeText}
-              lines={lines("border-y border-slate-200")}
-              edit={editDonation}
-              totalText={props.global.totalText}
-              total={total}
+          {/* Its own column on wide screens; on narrow ones its parts join
+              the one under the form, where only paying shows. */}
+          <div className="contents lg:block lg:border-l lg:border-slate-300 lg:pt-16 lg:pb-32 lg:pl-12">
+            <div className="hidden lg:block">
+              <DonationOverview
+                title={props.overviewTitle}
+                typeText={typeText}
+                lines={lines("border-y border-slate-200")}
+                edit={editDonation}
+                totalText={props.global.totalText}
+                total={total}
+              />
+            </div>
+            <section
+              aria-labelledby={paymentTitleId}
+              className="mt-2 flex flex-col gap-5 border-t border-slate-200 pt-6 lg:mt-6"
             >
-              <div className="mt-2 flex flex-col gap-5 border-t border-slate-200 pt-6">
-                {payment(false)}
-              </div>
-            </DonationOverview>
+              <h3
+                id={paymentTitleId}
+                className="text-xl leading-6 font-semibold tracking-tight text-primary-700 lg:sr-only"
+              >
+                {props.paymentTitle}
+              </h3>
+              {payment}
+            </section>
           </div>
         </div>
-      )}
-      {!donated && stage === 1 && !wide && (
-        <form
-          className={classes(formClasses, "max-w-lg")}
-          onSubmit={(event) => event.preventDefault()}
-        >
-          {back}
-          <SummaryBar
-            title={props.overviewTitle}
-            typeText={typeText}
-            total={total}
-          >
-            {lines()}
-          </SummaryBar>
-          <div className="-mt-1 flex">{editDonation}</div>
-          <div className="flex flex-col gap-4">{detailsFields(true)}</div>
-          <section
-            aria-labelledby={paymentTitleId}
-            className="mt-2 flex flex-col gap-5 border-t border-slate-200 pt-6"
-          >
-            <h3
-              id={paymentTitleId}
-              className="text-xl leading-6 font-semibold tracking-tight text-primary-700"
-            >
-              {props.paymentTitle}
-            </h3>
-            {payment(true)}
-          </section>
-        </form>
       )}
       {donated && (
         <div className="flex max-w-lg flex-col gap-4 lg:pt-16 lg:pb-32">

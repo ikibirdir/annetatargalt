@@ -312,6 +312,28 @@ test.describe("where the donation goes", () => {
     ).toBeChecked();
   });
 
+  test("shows each charity's amount in the window as the donation has it", async ({
+    page,
+  }) => {
+    await page.goto("/anneta");
+    const f = form(page);
+    await choose(f.otherAmount);
+    await f.otherAmountInput.fill("10,01");
+    await choose(f.choice(HEALTH));
+    await f.specify(HEALTH).click();
+    const charities = page.getByRole("dialog");
+    await choose(charities.getByRole("checkbox", { name: /^Alpha Aid/ }));
+
+    // Half of €10.01 each: €5.005, so one gets the cent, as in the payment.
+    await expect(charities.getByText("5,01€", { exact: true })).toHaveCount(1);
+    await expect(charities.getByText("5,00€", { exact: true })).toHaveCount(1);
+    await charities
+      .getByRole("button", { name: "Charities confirm text" })
+      .click();
+    await expect(f.summary).toContainText("5,01€");
+    await expect(f.summary).toContainText("5,00€");
+  });
+
   test("moves a border as far as its handle is dragged, not on a press", async ({
     page,
   }) => {
@@ -417,6 +439,23 @@ test.describe("the form", () => {
     await f.editDonation.click();
     await expect(f.next).toBeVisible();
     await expect(page.locator("body[data-same]")).toHaveCount(1);
+  });
+
+  test("keeps what's being typed when the window narrows past wide", async ({
+    page,
+  }) => {
+    await page.goto("/anneta");
+    const f = form(page);
+    await choose(f.choice(HEALTH));
+    await f.next.click();
+    await f.firstName.click();
+    await page.keyboard.type("Ma");
+    // A tablet turned: the details are laid out in one column now.
+    await page.setViewportSize({ width: 700, height: 900 });
+    await expect(f.summary).toBeHidden();
+    await page.keyboard.type("ri");
+    await expect(f.firstName).toHaveValue("Mari");
+    await expect(f.firstName).toBeFocused();
   });
 
   test("won't take zero as another amount", async ({ page }) => {

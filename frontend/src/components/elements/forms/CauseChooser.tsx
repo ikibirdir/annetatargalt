@@ -379,6 +379,7 @@ export default function CauseChooser({
           </div>
           <SplitBar
             parts={chosenChoices.map(({ key, label }) => ({
+              id: key,
               label,
               share: proportions.getProportion(key),
             }))}
@@ -408,6 +409,23 @@ export default function CauseChooser({
           amount={
             amounts.causes.find(({ cause }) => cause.id === picked.id)
               ?.amount ?? 0
+          }
+          amountsFor={(subs) =>
+            Object.fromEntries(
+              (
+                amountsByCause(
+                  proportions.withSubProportions(picked.id, subs),
+                  amount,
+                  causes,
+                  supportOrganization,
+                ).causes.find(({ cause }) => cause.id === picked.id)
+                  ?.organizations ?? []
+              ).flatMap(({ organization, amount: part }) =>
+                organization.internalId
+                  ? [[organization.internalId, part]]
+                  : [],
+              ),
+            )
           }
           proportions={pickedProportions}
           onConfirm={(subs) => {

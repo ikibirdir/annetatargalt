@@ -9,6 +9,8 @@ import type { Locale } from "@/utils/locale";
 import { splitColor } from "./split-colors";
 
 export interface SplitPart {
+  /** The cause's or organization's own key: labels can repeat, or be empty. */
+  id: string | number;
   label: string;
   share: number;
 }
@@ -60,7 +62,7 @@ export default function SplitBar({
       <div className="flex h-full overflow-hidden rounded-lg">
         {parts.map((part, index) => (
           <div
-            key={part.label}
+            key={part.id}
             className={classes(
               splitColor(colorIndexes[index] ?? index).background,
               "flex flex-none items-center justify-center overflow-hidden text-sm font-bold whitespace-nowrap text-white",
@@ -76,7 +78,7 @@ export default function SplitBar({
         const right = parts[index + 1];
         return (
           <div
-            key={`${left.label}/${right.label}`}
+            key={`${left.id}/${right.id}`}
             role="slider"
             tabIndex={0}
             aria-label={format(uiText(locale).splitBorder, {

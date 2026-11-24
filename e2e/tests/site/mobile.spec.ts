@@ -35,7 +35,12 @@ test("on a phone the details step has the donation in a bar, and Donate says the
   // Closed, the bar shows the total; opened, the donation's lines.
   const bar = page.getByRole("button", { name: /^Overview title.*30,00€/ });
   await expect(bar).toHaveAttribute("aria-expanded", "false");
-  await clickToOpen(bar, page.getByText("Example Fund"));
+  // In the bar's own panel: the overview beside the form on wide screens is
+  // on the page too, out of sight.
+  const panel = page.locator(
+    `[id="${await bar.getAttribute("aria-controls")}"]`,
+  );
+  await clickToOpen(bar, panel.getByText("Example Fund"));
   await expect(
     page.getByRole("button", { name: "Donate button text 30,00€" }),
   ).toBeVisible();

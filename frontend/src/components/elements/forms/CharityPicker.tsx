@@ -43,8 +43,14 @@ interface CharityPickerProps {
   /** For the links to the organizations' pages, which are under the cause's. */
   causeSlug: string | null;
   organizations: (StrapiOrganization & { internalId: string })[];
-  /** The cause's part of the donation, for the amounts shown. */
+  /** The cause's part of the donation, for the text at the top. */
   amount: number;
+  /**
+   * What each organization would get of the donation with this split, by its
+   * internal id: worked out as the donation itself is, so the window shows
+   * the amounts the card and the payment will, to the cent.
+   */
+  amountsFor: (proportions: Proportions) => Record<string, number>;
   /** The cause's split between its organizations, as it is now. */
   proportions: Proportions;
   onConfirm: (proportions: Proportions) => void;
@@ -65,6 +71,7 @@ export default function CharityPicker({
   causeSlug,
   organizations,
   amount,
+  amountsFor,
   proportions,
   onConfirm,
   onClose,
@@ -80,6 +87,7 @@ export default function CharityPicker({
   )?.internalId;
   const idPrefix = useId();
   const chosen = draft.chosenKeys();
+  const amounts = amountsFor(draft);
   const chosenIndexes = organizations
     .map((organization, index) => ({ organization, index }))
     .filter(({ organization }) => chosen.includes(organization.internalId));
@@ -227,7 +235,7 @@ export default function CharityPicker({
                         {share}%
                       </span>
                       <span className="block text-[13px] leading-[18px] text-slate-500">
-                        {money((amount * share) / 100)}
+                        {money(amounts[organization.internalId] ?? 0)}
                       </span>
                     </label>
                   )}
@@ -257,6 +265,7 @@ export default function CharityPicker({
               </div>
               <SplitBar
                 parts={chosenIndexes.map(({ organization }) => ({
+                  id: organization.internalId,
                   label: organization.title ?? "",
                   share: draft.getProportion(organization.internalId),
                 }))}
