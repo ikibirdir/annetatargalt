@@ -24,6 +24,15 @@
     "idCodeDescription": {
       "type": "string"
     },
+    "requiredFieldText": {
+      "type": "string"
+    },
+    "emailErrorText": {
+      "type": "string"
+    },
+    "idCodeErrorText": {
+      "type": "string"
+    },
     "otherAmountText": {
       "type": "string"
     },
@@ -112,6 +121,15 @@
       "type": "string"
     },
     "donateButtonText": {
+      "type": "string"
+    },
+    "stillNeededText": {
+      "type": "string"
+    },
+    "bankNeededText": {
+      "type": "string"
+    },
+    "termsNeededText": {
       "type": "string"
     },
     "termsText": {

@@ -164,9 +164,21 @@ test.describe("one-off donation", () => {
     await f.terms.check();
     await f.company.check();
     await expect(f.donate).toBeDisabled();
+    // Under Donate, what it still waits for.
+    await expect(
+      page.getByText("Still needed: Company name text, Company code text."),
+    ).toBeVisible();
+    // A field left empty says so; filled, it doesn't.
+    await f.companyName.focus();
+    await f.companyName.blur();
+    await expect(
+      page.getByText("Company name text is required."),
+    ).toBeVisible();
     await f.companyName.fill("Näide OÜ");
+    await expect(page.getByText("Company name text is required.")).toBeHidden();
     await f.companyCode.fill("12345678");
     await expect(f.donate).toBeEnabled();
+    await expect(page.getByText(/Still needed/)).toBeHidden();
     await f.donate.click();
     await payAtBank(page);
     await expect(
@@ -400,15 +412,26 @@ test.describe("the form", () => {
       email: "not-an-email",
     });
     const f = form(page);
+    // Leaving the email for the terms: it says what's wrong, and so does the
+    // line under Donate.
     await f.terms.check();
+    await expect(page.getByText("Email error text")).toBeVisible();
+    await expect(f.email).toHaveAttribute("aria-invalid", "true");
     await expect(f.donate).toBeDisabled();
+    await expect(page.getByText("Still needed: Email text.")).toBeVisible();
     await f.email.fill(uniqueEmail());
+    await expect(page.getByText("Email error text")).toBeHidden();
     await expect(f.donate).toBeEnabled();
+    await expect(page.getByText(/Still needed/)).toBeHidden();
 
     // An Estonian ID code has a check digit.
     await f.idCode.fill("37605030298");
+    await f.idCode.blur();
+    await expect(page.getByText("Id code error text")).toBeVisible();
+    await expect(page.getByText("Still needed: Id code text.")).toBeVisible();
     await expect(f.donate).toBeDisabled();
     await f.idCode.fill("37605030299");
+    await expect(page.getByText("Id code error text")).toBeHidden();
     await expect(f.donate).toBeEnabled();
   });
 

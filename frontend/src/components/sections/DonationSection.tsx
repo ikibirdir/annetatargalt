@@ -75,6 +75,11 @@ interface DonationSectionProps extends StrapiDonationSection {
  * The browser's form is also the one that keeps a draft (see
  * utils/donation-draft) and picks it up again.
  */
+/** A label without the note in brackets at its end, as "(optional)". */
+function withoutNote(label: string | null) {
+  return label?.replace(/\s*\([^)]*\)\s*$/, "") ?? null;
+}
+
 export default function DonationSection(props: DonationSectionProps) {
   return (
     <Suspense
@@ -256,6 +261,26 @@ function DonationForm({
   };
   // Donate is on the details step, so it waits for all of it.
   const canDonate = stageValidity[0] && stageValidity[1] && stageValidity[2];
+  // And what it still waits for, said under it, in the order the form asks:
+  // the fields by their labels (the ID code's without its "(optional)"), the
+  // bank and the terms in words of their own.
+  const company = donation.companyDonation;
+  const dedication = donation.type === "onetime" && donation.dedicateDonation;
+  const needed: [boolean, string | null][] = [
+    [!validity.firstName, props.firstNameText],
+    [!validity.lastName, props.lastNameText],
+    [!validity.email, props.emailText],
+    [!validity.idCode, withoutNote(props.idCodeText)],
+    [company && !validity.companyName, props.companyNameText],
+    [company && !validity.companyCode, props.companyCodeText],
+    [dedication && !validity.dedicationName, props.dedicationNameText],
+    [dedication && !validity.dedicationEmail, props.dedicationEmailText],
+    [donation.type === "recurring" && !donation.bank, props.bankNeededText],
+    [!donation.acceptTerms, props.termsNeededText],
+  ];
+  const stillNeeded = needed.flatMap(([missing, text]) =>
+    missing && text ? [text] : [],
+  );
 
   // Two steps: the amount and where it goes, then details and paying. (A
   // draft from when there were more steps picks up on the last.)
@@ -470,6 +495,11 @@ function DonationForm({
         <span className="lg:hidden">{`${props.donateButtonText ?? ""} ${total}`}</span>
         <span className="hidden lg:inline">{props.donateButtonText}</span>
       </Button>
+      {!canDonate && stillNeeded.length > 0 && props.stillNeededText && (
+        <p className="-mt-2 text-center text-sm text-slate-500">
+          {format(props.stillNeededText, { items: stillNeeded.join(", ") })}
+        </p>
+      )}
       {donation.type === "onetime" &&
         (props.paymentProviderText || props.paymentProviderLogo?.file) && (
           <div className="flex flex-wrap items-center justify-center gap-2 text-center">
@@ -577,6 +607,7 @@ function DonationForm({
         setFirstName={(firstName) => setDonation({ ...donation, firstName })}
         setLastName={(lastName) => setDonation({ ...donation, lastName })}
         setValidity={setValidity}
+        requiredFieldText={props.requiredFieldText}
         sideBySide={true}
         // The step starts with the donation above the fields: a cursor in
         // them would scroll past it and, on a phone, open the keyboard.
@@ -587,6 +618,8 @@ function DonationForm({
         email={donation.email}
         setEmail={(email) => setDonation({ ...donation, email })}
         setValidity={setValidity}
+        requiredFieldText={props.requiredFieldText}
+        invalidText={props.emailErrorText}
       />
       <IdCodeInput
         idCodeText={props.idCodeText}
@@ -594,6 +627,7 @@ function DonationForm({
         idCode={donation.idCode}
         setIdCode={(idCode) => setDonation({ ...donation, idCode })}
         setValidity={setValidity}
+        invalidText={props.idCodeErrorText}
       />
       <CompanyInput
         donateAsCompanyText={props.donateAsCompanyText}
@@ -612,6 +646,7 @@ function DonationForm({
           setDonation({ ...donation, companyCode })
         }
         setValidity={setValidity}
+        requiredFieldText={props.requiredFieldText}
       />
       {donation.type === "onetime" && (
         <DedicationInput
@@ -636,6 +671,8 @@ function DonationForm({
             setDonation({ ...donation, dedicationMessage })
           }
           setValidity={setValidity}
+          requiredFieldText={props.requiredFieldText}
+          emailInvalidText={props.emailErrorText}
         />
       )}
     </>

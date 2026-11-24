@@ -1,4 +1,4 @@
-import TextInput from "./TextInput";
+import TextInput, { requiredText } from "./TextInput";
 
 interface NameInputProps {
   firstNameText: string | null;
@@ -8,6 +8,8 @@ interface NameInputProps {
   setFirstName: (name: string) => void;
   setLastName: (name: string) => void;
   setValidity: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+  /** "<%= field %> is required": under a name left empty. */
+  requiredFieldText?: string | null;
   /** Side by side on narrow screens too, to save height. */
   sideBySide?: boolean;
   /** Puts the cursor in the first name; off where the step starts higher up. */
@@ -22,6 +24,7 @@ export default function NameInput({
   setFirstName,
   setLastName,
   setValidity,
+  requiredFieldText,
   sideBySide = false,
   autoFocus = true,
 }: NameInputProps) {
@@ -40,6 +43,7 @@ export default function NameInput({
         setValidity={setValidity}
         isValid={(value) => value !== ""}
         label={firstNameText}
+        errorText={requiredText(requiredFieldText, firstNameText)}
         autoComplete="given-name"
         maxLength={128}
         autoFocus={autoFocus}
@@ -51,6 +55,7 @@ export default function NameInput({
         setValidity={setValidity}
         isValid={(value) => value !== ""}
         label={lastNameText}
+        errorText={requiredText(requiredFieldText, lastNameText)}
         autoComplete="family-name"
         maxLength={128}
       />

@@ -229,6 +229,9 @@ export interface StrapiDonationSection {
   emailText: string | null;
   idCodeText: string | null;
   idCodeDescription: string | null;
+  requiredFieldText: string | null;
+  emailErrorText: string | null;
+  idCodeErrorText: string | null;
   otherAmountText: string | null;
   amount1: number | null;
   amount2: number | null;
@@ -259,6 +262,9 @@ export interface StrapiDonationSection {
   amountText: string | null;
   nextButtonText: string | null;
   donateButtonText: string | null;
+  stillNeededText: string | null;
+  bankNeededText: string | null;
+  termsNeededText: string | null;
   termsText: string | null;
   newsletterText: string | null;
   chooseAmountText: string | null;

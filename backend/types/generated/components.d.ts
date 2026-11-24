@@ -368,6 +368,7 @@ export interface SectionsDonationSection extends Struct.ComponentSchema {
     amount3: Schema.Attribute.Integer;
     amountText: Schema.Attribute.String;
     backButtonText: Schema.Attribute.String;
+    bankNeededText: Schema.Attribute.String;
     banks: Schema.Attribute.Component<'elements.bank-icon', true>;
     bankText: Schema.Attribute.String;
     cardPaymentsText: Schema.Attribute.String &
@@ -395,9 +396,11 @@ export interface SectionsDonationSection extends Struct.ComponentSchema {
     donationTypeText: Schema.Attribute.String;
     editCharitiesText: Schema.Attribute.String;
     editDonationText: Schema.Attribute.String;
+    emailErrorText: Schema.Attribute.String;
     emailText: Schema.Attribute.String;
     firstNameText: Schema.Attribute.String;
     idCodeDescription: Schema.Attribute.String;
+    idCodeErrorText: Schema.Attribute.String;
     idCodeText: Schema.Attribute.String;
     informationText: Schema.Attribute.String;
     lastNameText: Schema.Attribute.String;
@@ -423,14 +426,17 @@ export interface SectionsDonationSection extends Struct.ComponentSchema {
     recurringDonationGuide: Schema.Attribute.RichText;
     recurringDonationSummary: Schema.Attribute.RichText;
     recurringDonationText: Schema.Attribute.String;
+    requiredFieldText: Schema.Attribute.String;
     resetSplitText: Schema.Attribute.String;
     singleDonationText: Schema.Attribute.String;
     specifyCharitiesText: Schema.Attribute.String;
     splitEvenlyText: Schema.Attribute.String;
     splitHintText: Schema.Attribute.String;
     stepText: Schema.Attribute.String;
+    stillNeededText: Schema.Attribute.String;
     supportOptionDescription: Schema.Attribute.Text;
     supportOptionText: Schema.Attribute.String;
+    termsNeededText: Schema.Attribute.String;
     termsText: Schema.Attribute.RichText;
     tipCheckboxText: Schema.Attribute.String;
     tipText: Schema.Attribute.RichText;

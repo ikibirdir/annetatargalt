@@ -159,6 +159,8 @@ export const PAGES: PageContent[] = [
         oneTimeDonationSummary: "Your one-off donation:",
         recurringDonationSummary: "Your monthly donation:",
         recurringDonationGuide: "Set up a standing order of <%= amount %>.",
+        requiredFieldText: "<%= field %> is required.",
+        stillNeededText: "Still needed: <%= items %>.",
         banks: [{ bank: "swedbank" }, { bank: "seb" }, { bank: "lhv" }],
       },
     ],

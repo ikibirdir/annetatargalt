@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import CheckboxInput from "./CheckboxInput";
-import TextInput from "./TextInput";
+import TextInput, { requiredText } from "./TextInput";
 
 interface CompanyInputProps {
   donateAsCompanyText: string | null;
@@ -13,6 +13,8 @@ interface CompanyInputProps {
   companyCode: string;
   setCompanyCode: (code: string) => void;
   setValidity: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+  /** "<%= field %> is required": under a field left empty. */
+  requiredFieldText?: string | null;
 }
 
 export default function CompanyInput({
@@ -26,20 +28,25 @@ export default function CompanyInput({
   companyCode,
   setCompanyCode,
   setValidity,
+  requiredFieldText,
 }: CompanyInputProps) {
   const [companyValidity, setCompanyValidity] = useState<
     Record<string, boolean>
   >({});
 
+  // Valid as a whole, and each field too, for saying which one is missing:
+  // all of it, for a donation that isn't a company's.
   useEffect(() => {
-    if (!companyDonation) {
-      setValidity((ready) => ({ ...ready, company: true }));
-    } else {
-      const companyValid =
-        Boolean(companyValidity.companyName) &&
-        Boolean(companyValidity.companyCode);
-      setValidity((ready) => ({ ...ready, company: companyValid }));
-    }
+    const companyNameValid =
+      !companyDonation || Boolean(companyValidity.companyName);
+    const companyCodeValid =
+      !companyDonation || Boolean(companyValidity.companyCode);
+    setValidity((ready) => ({
+      ...ready,
+      company: companyNameValid && companyCodeValid,
+      companyName: companyNameValid,
+      companyCode: companyCodeValid,
+    }));
   }, [companyDonation, companyName, companyCode, companyValidity, setValidity]);
 
   return (
@@ -59,6 +66,7 @@ export default function CompanyInput({
             setValidity={setCompanyValidity}
             isValid={(value) => value !== ""}
             label={companyNameText}
+            errorText={requiredText(requiredFieldText, companyNameText)}
             autoComplete="company-name"
             maxLength={128}
           />
@@ -69,6 +77,7 @@ export default function CompanyInput({
             setValidity={setCompanyValidity}
             isValid={(value) => value !== ""}
             label={companyCodeText}
+            errorText={requiredText(requiredFieldText, companyCodeText)}
             autoComplete="company-registry-code"
             maxLength={128}
           />

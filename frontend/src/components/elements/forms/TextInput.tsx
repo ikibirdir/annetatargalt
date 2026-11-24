@@ -1,4 +1,5 @@
 import { classes } from "@/utils/react";
+import { format } from "@/utils/string";
 import { useEffect, useRef, useState } from "react";
 
 interface TextInputProps {
@@ -13,6 +14,16 @@ interface TextInputProps {
   autoFocus?: boolean;
   maxLength?: number;
   description?: string | null;
+  /** What's wrong, under it once the donor has left it invalid. */
+  errorText?: string | null;
+}
+
+/** A required field's message: "<%= field %> is required", by its label. */
+export function requiredText(
+  template: string | null | undefined,
+  label: string | null,
+) {
+  return template && label ? format(template, { field: label }) : null;
 }
 
 export default function TextInput({
@@ -27,8 +38,19 @@ export default function TextInput({
   autoFocus = false,
   maxLength,
   description,
+  errorText,
 }: TextInputProps) {
+  // Judged when the donor leaves it, never while they type: typing hides
+  // what was wrong until they leave it again.
   const [error, setError] = useState(false);
+  const errorId = `${name}-error`;
+  const descriptionId = `${name}-description`;
+  const describedBy = [
+    error && errorText ? errorId : "",
+    description ? descriptionId : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   // Use a ref so the effect can always call the latest isValid without
   // being sensitive to inline function identity changes at the call site.
@@ -67,14 +89,23 @@ export default function TextInput({
           value={value}
           onChange={(event) => {
             setValue(event.target.value);
-            setError(!isValid(event.target.value));
+            setError(false);
           }}
           onBlur={() => setError(!isValid(value))}
+          aria-invalid={error || undefined}
+          aria-describedby={describedBy || undefined}
           placeholder={placeholder}
         />
       </div>
+      {error && errorText && (
+        <p id={errorId} className="mt-2 text-sm text-red-700">
+          {errorText}
+        </p>
+      )}
       {description && (
-        <p className="mt-2 text-xs text-slate-500">{description}</p>
+        <p id={descriptionId} className="mt-2 text-xs text-slate-500">
+          {description}
+        </p>
       )}
     </div>
   );
