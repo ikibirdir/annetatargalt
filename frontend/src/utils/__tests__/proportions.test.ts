@@ -50,36 +50,12 @@ describe("Proportions constructor", () => {
     expect(p.getProportion(2)).toBe(40);
   });
 
-  it("defaults locked to false", () => {
-    const p = new Proportions([[1, {}]]);
-    expect(p.isLocked(1)).toBe(false);
-  });
-
   it("accepts string keys", () => {
     const p = makeProportions([
       ["org1", 70],
       ["org2", 30],
     ]);
     expect(p.getProportion("org1")).toBe(70);
-  });
-});
-
-describe("proportionSum", () => {
-  it("sums all proportions", () => {
-    const p = makeProportions([
-      [1, 60],
-      [2, 40],
-    ]);
-    expect(p.proportionSum()).toBe(100);
-  });
-
-  it("works with three entries", () => {
-    const p = makeProportions([
-      [1, 50],
-      [2, 30],
-      [3, 20],
-    ]);
-    expect(p.proportionSum()).toBe(100);
   });
 });
 
@@ -101,93 +77,6 @@ describe("keys / entries", () => {
   });
 });
 
-describe("lockProportion", () => {
-  it("locks only the specified entry", () => {
-    const p = makeProportions([
-      [1, 50],
-      [2, 50],
-    ]);
-    const locked = p.lockProportion(1);
-    expect(locked.isLocked(1)).toBe(true);
-    expect(locked.isLocked(2)).toBe(false);
-  });
-
-  it("returns a new instance (immutable)", () => {
-    const p = makeProportions([
-      [1, 50],
-      [2, 50],
-    ]);
-    const locked = p.lockProportion(1);
-    expect(p.isLocked(1)).toBe(false);
-    expect(locked.isLocked(1)).toBe(true);
-  });
-});
-
-describe("toggleProportionLock", () => {
-  it("locks an unlocked entry", () => {
-    const p = makeProportions([
-      [1, 50],
-      [2, 50],
-    ]);
-    expect(p.toggleProportionLock(1).isLocked(1)).toBe(true);
-  });
-
-  it("unlocks a locked entry", () => {
-    const p = makeProportions([
-      [1, 50],
-      [2, 50],
-    ]);
-    const toggled = p.toggleProportionLock(1).toggleProportionLock(1);
-    expect(toggled.isLocked(1)).toBe(false);
-  });
-});
-
-describe("updateProportion", () => {
-  it("redistributes proportions when one changes", () => {
-    const p = makeProportions([
-      [1, 50],
-      [2, 50],
-    ]);
-    const updated = p.updateProportion(1, 70);
-    expect(updated.getProportion(1)).toBe(70);
-    expect(updated.getProportion(2)).toBe(30);
-    expect(updated.proportionSum()).toBe(100);
-  });
-
-  it("clamps to 100 when locked proportions prevent the change", () => {
-    const p = makeProportions([
-      [1, 50],
-      [2, 50],
-    ]).lockProportion(2);
-    // 2 is locked at 50, so 1 can be at most 50
-    const updated = p.updateProportion(1, 80);
-    expect(updated.getProportion(1)).toBe(50);
-    expect(updated.proportionSum()).toBe(100);
-  });
-
-  it("allows going to 0", () => {
-    const p = makeProportions([
-      [1, 50],
-      [2, 50],
-    ]);
-    const updated = p.updateProportion(1, 0);
-    expect(updated.getProportion(1)).toBe(0);
-    expect(updated.getProportion(2)).toBe(100);
-  });
-
-  it("keeps proportion unchanged when all others are locked", () => {
-    const p = makeProportions([
-      [1, 50],
-      [2, 50],
-    ]).lockProportion(2);
-    // Only key 2 is not the target. It's locked. So proportion stays.
-    // But wait: 2 is locked at 50, totalLocked = 50, 50+80 > 100 so newProportion = 50
-    const updated = p.updateProportion(2, 80); // 2 is locked but we're updating it here... actually no
-    // updateProportion doesn't check if id itself is locked
-    expect(updated.proportionSum()).toBe(100);
-  });
-});
-
 describe("mapEntries", () => {
   it("transforms all entries", () => {
     const p = makeProportions([
@@ -203,21 +92,7 @@ describe("mapEntries", () => {
   });
 });
 
-describe("unlockProportions", () => {
-  it("unlocks all entries", () => {
-    const p = makeProportions([
-      [1, 50],
-      [2, 50],
-    ])
-      .lockProportion(1)
-      .lockProportion(2);
-    const unlocked = p.unlockProportions();
-    expect(unlocked.isLocked(1)).toBe(false);
-    expect(unlocked.isLocked(2)).toBe(false);
-  });
-});
-
-describe("sub-proportion methods", () => {
+describe("sub-proportions", () => {
   it("getSubProportion returns sub proportion", () => {
     const p = makeWithSubs([
       [
@@ -231,43 +106,6 @@ describe("sub-proportion methods", () => {
     ]);
     expect(p.getSubProportion(1, "org1")).toBe(60);
     expect(p.getSubProportion(1, "org2")).toBe(40);
-  });
-
-  it("isSubLocked returns false by default", () => {
-    const p = makeWithSubs([[1, 100, [["org1", 100]]]]);
-    expect(p.isSubLocked(1, "org1")).toBe(false);
-  });
-
-  it("lockSubProportion locks the sub entry", () => {
-    const p = makeWithSubs([
-      [
-        1,
-        100,
-        [
-          ["org1", 60],
-          ["org2", 40],
-        ],
-      ],
-    ]);
-    const locked = p.lockSubProportion(1, "org1");
-    expect(locked.isSubLocked(1, "org1")).toBe(true);
-    expect(locked.isSubLocked(1, "org2")).toBe(false);
-  });
-
-  it("updateSubProportion redistributes within the sub", () => {
-    const p = makeWithSubs([
-      [
-        1,
-        100,
-        [
-          ["org1", 50],
-          ["org2", 50],
-        ],
-      ],
-    ]);
-    const updated = p.updateSubProportion(1, "org1", 80);
-    expect(updated.getSubProportion(1, "org1")).toBe(80);
-    expect(updated.getSubProportion(1, "org2")).toBe(20);
   });
 });
 

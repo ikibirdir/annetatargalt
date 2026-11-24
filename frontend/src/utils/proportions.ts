@@ -3,9 +3,7 @@ import { evenShares } from "./split";
 export type ProportionKey = string | number;
 
 export interface ProportionEntry {
-  locked: boolean;
   proportion: number;
-  toFund?: boolean;
   fund?: boolean | null;
   proportions?: Proportions;
 }
@@ -57,7 +55,6 @@ export default class Proportions {
       ([key, value]): [ProportionKey, ProportionEntry] => [
         key,
         {
-          locked: false,
           proportion: Math.floor(100 / entries.length),
           ...value,
         },
@@ -77,18 +74,6 @@ export default class Proportions {
     );
   }
 
-  set(id: ProportionKey, value: ProportionEntry): void {
-    this.proportions.set(id, value);
-  }
-
-  setSub(
-    id: ProportionKey,
-    subId: ProportionKey,
-    value: ProportionEntry,
-  ): void {
-    requireSubProportions(this.get(id), id).set(subId, value);
-  }
-
   getProportion(id: ProportionKey): number {
     return this.get(id).proportion;
   }
@@ -97,45 +82,8 @@ export default class Proportions {
     return this.getSub(id, subId).proportion;
   }
 
-  goesToFund(id: ProportionKey): boolean | undefined {
-    return this.get(id).toFund;
-  }
-
-  toggleToFund(id: ProportionKey): Proportions {
-    let newProportions: Proportions = this;
-
-    if (!this.goesToFund(id)) {
-      const fundId = this.subKeys(id).find(
-        (subId) => this.getSub(id, subId).fund,
-      );
-      if (fundId !== undefined) {
-        newProportions = newProportions
-          .unlockSubProportions(id)
-          .updateSubProportion(id, fundId, 100)
-          .unlockSubProportions(id);
-      }
-    }
-
-    return newProportions.mapEntries((key, value) => [
-      key,
-      key === id ? { ...value, toFund: !value.toFund } : value,
-    ]);
-  }
-
-  isLocked(id: ProportionKey): boolean {
-    return this.get(id).locked;
-  }
-
-  isSubLocked(id: ProportionKey, subId: ProportionKey): boolean {
-    return this.getSub(id, subId).locked;
-  }
-
   keys(): ProportionKey[] {
     return Array.from(this.proportions.keys());
-  }
-
-  subKeys(id: ProportionKey): ProportionKey[] {
-    return Array.from(requireSubProportions(this.get(id), id).keys());
   }
 
   entries(): Array<[ProportionKey, ProportionEntry]> {
@@ -151,72 +99,6 @@ export default class Proportions {
     return new Proportions(
       this.entries().map(([key, value]) => fun(key, value)),
     );
-  }
-
-  proportionSum(): number {
-    return Array.from(this.proportions.values()).reduce(
-      (sum, { proportion }) => sum + proportion,
-      0,
-    );
-  }
-
-  lockProportion(id: ProportionKey): Proportions {
-    return this.mapEntries((key, value) => [
-      key,
-      key === id ? { ...value, locked: true } : value,
-    ]);
-  }
-
-  lockSubProportion(id: ProportionKey, subId: ProportionKey): Proportions {
-    return this.mapEntries((key, value) => [
-      key,
-      key === id
-        ? {
-            ...value,
-            proportions: requireSubProportions(value, id).lockProportion(subId),
-          }
-        : value,
-    ]);
-  }
-
-  toggleProportionLock(id: ProportionKey): Proportions {
-    return this.mapEntries((key, value) => [
-      key,
-      key === id ? { ...value, locked: !value.locked } : value,
-    ]);
-  }
-
-  toggleSubProportionLock(
-    id: ProportionKey,
-    subId: ProportionKey,
-  ): Proportions {
-    return this.mapEntries((key, value) => [
-      key,
-      key === id
-        ? {
-            ...value,
-            proportions: requireSubProportions(value, id).toggleProportionLock(
-              subId,
-            ),
-          }
-        : value,
-    ]);
-  }
-
-  unlockProportions(): Proportions {
-    return this.mapEntries((key, value) => [key, { ...value, locked: false }]);
-  }
-
-  unlockSubProportions(id: ProportionKey): Proportions {
-    return this.mapEntries((key, value) => [
-      key,
-      key === id
-        ? {
-            ...value,
-            proportions: requireSubProportions(value, id).unlockProportions(),
-          }
-        : value,
-    ]);
   }
 
   /** The keys with a share: the causes (or organizations) chosen. */
@@ -236,7 +118,6 @@ export default class Proportions {
         {
           ...value,
           proportion: index === -1 ? 0 : (shares[index] ?? 0),
-          locked: false,
         },
       ];
     });
@@ -263,92 +144,6 @@ export default class Proportions {
     return this.mapEntries((key, value) => [
       key,
       key === id ? { ...value, proportions } : value,
-    ]);
-  }
-
-  updateProportion(id: ProportionKey, proportion: number): Proportions {
-    const newProportions = new Proportions(this.entries());
-
-    const lockedProportions: ProportionKey[] = [];
-    const unlockedProportions: ProportionKey[] = [];
-    let totalLocked = 0;
-    let totalUnlocked = 0;
-
-    for (const key of this.keys()) {
-      if (key === id) {
-        continue;
-      } else if (newProportions.isLocked(key)) {
-        lockedProportions.push(key);
-        totalLocked += Number(newProportions.getProportion(key));
-      } else {
-        unlockedProportions.push(key);
-        totalUnlocked += Number(newProportions.getProportion(key));
-      }
-    }
-
-    let newProportion: number;
-    if (unlockedProportions.length === 0) {
-      newProportion = newProportions.getProportion(id);
-    } else if (totalLocked + proportion > 100) {
-      newProportion = 100 - totalLocked;
-    } else {
-      newProportion = proportion;
-    }
-
-    newProportions.set(id, {
-      ...newProportions.get(id),
-      proportion: newProportion,
-      locked: false,
-    });
-    const targetDelta = this.getProportion(id) - newProportion;
-
-    if (targetDelta === 0) {
-      newProportions.set(id, {
-        ...newProportions.get(id),
-        locked: true,
-      });
-      return newProportions;
-    }
-
-    const adder = targetDelta / Math.abs(targetDelta);
-    for (let i = 0; i < Math.abs(targetDelta); i++) {
-      let proportionsToChange: ProportionKey[];
-      proportionsToChange = unlockedProportions.filter(
-        (prop) => newProportions.getProportion(prop) > 0,
-      );
-      if (proportionsToChange.length === 0 && adder >= 0)
-        proportionsToChange = unlockedProportions;
-      const proportionToChangeIndex =
-        (totalUnlocked - (adder < 0 ? 1 : 0)) % proportionsToChange.length;
-      const proportionToChange = proportionsToChange[proportionToChangeIndex];
-      const oldProportion = newProportions.getProportion(proportionToChange);
-      newProportions.set(proportionToChange, {
-        ...newProportions.get(proportionToChange),
-        proportion: oldProportion + adder,
-        locked: false,
-      });
-      totalUnlocked += adder;
-    }
-
-    return newProportions;
-  }
-
-  updateSubProportion(
-    id: ProportionKey,
-    subId: ProportionKey,
-    proportion: number,
-  ): Proportions {
-    return this.mapEntries((key, value) => [
-      key,
-      key === id
-        ? {
-            ...value,
-            proportions: requireSubProportions(value, id).updateProportion(
-              subId,
-              proportion,
-            ),
-          }
-        : value,
     ]);
   }
 
@@ -443,18 +238,14 @@ export default class Proportions {
         cause.id,
         {
           proportion: equalProportions[causeIndex],
-          locked: false,
-          // "Let the experts decide" starts unticked, so a donor who opens a
-          // cause can move its organizations' sliders straight away. The
-          // money still starts with the cause's fund (100% below).
-          toFund: false,
+          // All of the cause's share to its fund, until the donor picks
+          // charities of their own.
           proportions: new Proportions(
             cause.organizations.filter(hasInternalId).map((organization) => [
               organization.internalId,
               {
                 proportion: organization.fund ? 100 : 0,
                 fund: organization.fund,
-                locked: false,
               },
             ]),
           ),
@@ -512,9 +303,6 @@ export default class Proportions {
         cause.id,
         {
           proportion: preChosenProportions[causeIndex],
-          locked: false,
-          // Unticked everywhere, as without a chosen organization.
-          toFund: false,
           proportions: new Proportions(
             cause.organizations.filter(hasInternalId).map((organization) => [
               organization.internalId,
@@ -525,7 +313,6 @@ export default class Proportions {
                   organization.fund,
                 ),
                 fund: organization.fund,
-                locked: false,
               },
             ]),
           ),

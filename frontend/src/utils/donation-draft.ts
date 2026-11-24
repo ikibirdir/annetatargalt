@@ -43,8 +43,6 @@ const DRAFT_KEY = "donationDraft";
 /** How a cause's or organization's share of the split is kept. */
 interface KeptShare {
   proportion: number;
-  locked: boolean;
-  toFund?: boolean;
   proportions?: Record<string, KeptShare>;
 }
 
@@ -52,21 +50,18 @@ function keptShares(proportions: Proportions): Record<string, KeptShare> {
   return Object.fromEntries(
     proportions
       .entries()
-      .map(([key, { proportion, locked, toFund, proportions: subs }]) => [
+      .map(([key, { proportion, proportions: subs }]) => [
         key,
-        {
-          proportion,
-          locked,
-          toFund,
-          proportions: subs && keptShares(subs),
-        },
+        { proportion, proportions: subs && keptShares(subs) },
       ]),
   );
 }
 
 /**
  * The kept split laid over the causes and organizations on the site now, or
- * null if they have changed since: then the kept split doesn't fit them.
+ * null if they have changed since: then the kept split doesn't fit them. (A
+ * draft from the form with sliders also kept their locks and whether the
+ * experts decide, which are passed over.)
  */
 function restoreShares(
   kept: unknown,
@@ -79,18 +74,8 @@ function restoreShares(
   const entries: Array<[ProportionKey, ProportionEntry]> = [];
   for (const [key, entry] of current.entries()) {
     const share = kept[String(key)];
-    if (
-      !isRecord(share) ||
-      typeof share.proportion !== "number" ||
-      typeof share.locked !== "boolean"
-    ) {
+    if (!isRecord(share) || typeof share.proportion !== "number") {
       return null;
-    }
-
-    let toFund = entry.toFund;
-    if (typeof toFund === "boolean") {
-      if (typeof share.toFund !== "boolean") return null;
-      toFund = share.toFund;
     }
 
     let proportions = entry.proportions;
@@ -105,8 +90,6 @@ function restoreShares(
       {
         ...entry,
         proportion: share.proportion,
-        locked: share.locked,
-        toFund,
         proportions,
       },
     ]);

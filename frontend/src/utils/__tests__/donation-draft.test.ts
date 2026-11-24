@@ -76,22 +76,22 @@ describe("donation drafts", () => {
     expect(json).not.toContain("acceptTerms");
   });
 
-  it("keeps the split with its locks and expert choices", () => {
-    // The donor splits cause 1 between its organizations themselves, and
-    // leaves cause 2 to the experts (ticking it: it starts unticked).
+  it("keeps the split, and a cause's own between its organizations", () => {
+    // Cause 2 at 20%, and cause 1 split 30/70 between its fund and org-b.
     const proportions = Proportions.fromStrapiData(causes)
-      .updateSubProportion(1, "org-b", 70)
-      .toggleToFund(2)
-      .updateProportion(2, 20)
-      .toggleProportionLock(2);
+      .withShares([1, 2], [80, 20])
+      .withSubProportions(
+        1,
+        new Proportions([
+          ["fund-a", { proportion: 30, fund: true }],
+          ["org-b", { proportion: 70, fund: false }],
+        ]),
+      );
     const json = donationDraftJson("null/null", 0, donation({ proportions }));
 
     const draft = parseDonationDraft(json, "null/null", current());
     expect(draft?.donation.proportions).toEqual(proportions);
     expect(draft?.donation.proportions.getProportion(2)).toBe(20);
-    expect(draft?.donation.proportions.isLocked(2)).toBe(true);
-    expect(draft?.donation.proportions.goesToFund(1)).toBe(false);
-    expect(draft?.donation.proportions.goesToFund(2)).toBe(true);
     expect(draft?.donation.proportions.getSubProportion(1, "org-b")).toBe(70);
   });
 
@@ -124,6 +124,26 @@ describe("donation drafts", () => {
     expect(draft?.stage).toBe(0);
     expect(draft?.donation.proportions).toEqual(current);
     expect(draft?.donation.email).toBe("mari@example.com");
+  });
+
+  it("reads a draft from the form with sliders, passing over their locks", () => {
+    // That form kept whether each slider was locked, and whether the experts
+    // decide for a cause.
+    const draft = JSON.parse(donationDraftJson("null/null", 0, donation()));
+    for (const share of Object.values<Record<string, unknown>>(
+      draft.donation.proportions,
+    )) {
+      share.locked = true;
+      share.toFund = false;
+    }
+    const parsed = parseDonationDraft(
+      JSON.stringify(draft),
+      "null/null",
+      current(),
+    );
+    expect(parsed?.donation.proportions).toEqual(
+      Proportions.fromStrapiData(causes),
+    );
   });
 
   it("is only for the link it was kept for", () => {
