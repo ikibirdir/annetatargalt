@@ -215,20 +215,25 @@ export default function CharityPicker({
                       </Anchor>
                     )}
                   </div>
-                  {on && (
-                    <label
-                      htmlFor={id}
-                      id={`${id}-share`}
-                      className="flex-none cursor-pointer self-center text-right whitespace-nowrap"
-                    >
-                      <span className="block text-[15px] leading-5 font-bold text-primary-700">
-                        {share}%
-                      </span>
-                      <span className="block text-[13px] leading-[18px] text-slate-500">
-                        {money(amounts[organization.internalId] ?? 0)}
-                      </span>
-                    </label>
-                  )}
+                  {/* The share and amount's room, kept whether it's ticked
+                      or not and as wide as €999.99, so the name and
+                      description beside it don't re-wrap as it changes. */}
+                  <div className="min-w-15 flex-none self-center text-right whitespace-nowrap">
+                    {on && (
+                      <label
+                        htmlFor={id}
+                        id={`${id}-share`}
+                        className="block cursor-pointer"
+                      >
+                        <span className="block text-[15px] leading-5 font-bold text-primary-700">
+                          {share}%
+                        </span>
+                        <span className="block text-[13px] leading-[18px] text-slate-500">
+                          {money(amounts[organization.internalId] ?? 0)}
+                        </span>
+                      </label>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -279,7 +284,7 @@ export default function CharityPicker({
           <div className="flex flex-wrap gap-3 pt-1">
             <Button
               text={texts.cancel}
-              type="secondary"
+              type="tertiary"
               size="lg"
               onClick={onClose}
               buttonType="button"

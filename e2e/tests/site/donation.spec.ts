@@ -219,7 +219,10 @@ test.describe("where the donation goes", () => {
     const f = form(page);
     await expect(f.choice(HEALTH)).not.toBeChecked();
     await expect(f.next).toBeDisabled();
-    await expect(f.summary).toContainText("Choose cause text");
+    // The summary says nothing's chosen, and what to do only under Next,
+    // not twice.
+    await expect(f.summary).toContainText("Nothing chosen text");
+    await expect(f.summary.getByText("Choose cause text")).toHaveCount(1);
 
     await choose(f.choice(HEALTH));
     await expect.poll(() => shareOf(page, HEALTH)).toBe("100%");

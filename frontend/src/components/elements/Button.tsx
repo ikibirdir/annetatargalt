@@ -7,7 +7,11 @@ import { track } from "@/utils/analytics";
 
 export interface ButtonProps {
   text?: string | null;
-  type?: "primary" | "secondary" | "white" | "text" | null;
+  /**
+   * "tertiary" is for the site's own buttons, not offered in Strapi: white
+   * with a grey border, for the way out of something, as Cancel.
+   */
+  type?: "primary" | "secondary" | "tertiary" | "white" | "text" | null;
   size?: "link" | "sm" | "md" | "lg" | "xl" | "text" | null;
   href?: string | null;
   onClick?: (event?: React.MouseEvent) => void;
@@ -44,6 +48,10 @@ export default function Button({
       "text-white shadow-xs bg-primary-700 hover:bg-primary-600 focus-visible:outline-primary-700 disabled:hover:bg-primary-600",
     secondary:
       "text-primary-600 shadow-xs bg-primary-100 hover:bg-primary-200 focus-visible:outline-primary-600 disabled:hover:bg-primary-100",
+    // The border as the form fields have it, and inside the button, so it's
+    // as big as the others beside it.
+    tertiary:
+      "text-slate-700 shadow-xs bg-white ring-1 ring-inset ring-slate-400 hover:bg-slate-50 focus-visible:outline-primary-600 disabled:hover:bg-white",
     white:
       "text-primary-800 shadow-xs bg-white hover:bg-primary-100 focus-visible:outline-white disabled:hover:bg-white",
     text: "hover:opacity-70 focus-visible:outline-primary-600 disabled:hover:opacity-70",

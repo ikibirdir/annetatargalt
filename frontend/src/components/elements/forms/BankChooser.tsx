@@ -9,50 +9,41 @@ interface BankChooserOptionProps {
   icon?: StrapiBankIcon["icon"];
 }
 
+/**
+ * A bank as the live site has it: its logo fills the tile (LHV's black and
+ * SEB's green are part of their logos), and a bank without one, "Other bank",
+ * is its name. The tiles are the logos' shape, 5:2, so they show whole.
+ */
 function BankChooserOption({ value, label, icon }: BankChooserOptionProps) {
   return (
     <Radio
       value={value}
-      className={({ focus, checked }) =>
+      className={({ checked }) =>
         classes(
+          // Chosen: the cause cards' green edge, drawn over the logo so it
+          // shows on it, on top of the border.
           checked
-            ? "border-primary-600 bg-primary-50 ring-1 ring-primary-600 ring-inset"
-            : "border-slate-400",
-          focus ? "bg-primary-50" : "",
-          "relative flex min-h-12 cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2 text-slate-900 shadow-xs focus:outline-hidden",
+            ? "border-primary-600 bg-primary-50 after:absolute after:inset-0 after:rounded-[7px] after:ring-1 after:ring-primary-600 after:ring-inset"
+            : "border-slate-400 bg-white",
+          // From the keyboard, an outline around it: the logo covers its
+          // inside.
+          "relative flex aspect-[5/2] cursor-pointer items-center justify-center overflow-hidden rounded-lg border text-slate-900 shadow-xs outline-hidden data-focus:outline-2 data-focus:outline-offset-2 data-focus:outline-primary-600 data-focus:outline-solid",
         )
       }
     >
-      {({ checked }) => (
-        <>
-          {/* A radio button's look, as the donation type's: the option
-              itself is the radio for screen readers. */}
-          <span
-            aria-hidden="true"
-            className={classes(
-              checked
-                ? "border-transparent bg-primary-600"
-                : "border-slate-400 bg-white",
-              "flex h-4 w-4 flex-none items-center justify-center rounded-full border",
-            )}
-          >
-            {checked && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
-          </span>
-          {icon && (
-            <Image
-              data={icon}
-              className="h-8 w-auto min-w-0 cursor-pointer rounded object-contain"
-            />
-          )}
-          <Label
-            className={
-              icon ? "sr-only" : "cursor-pointer text-sm leading-tight"
-            }
-          >
-            {label}
-          </Label>
-        </>
+      {icon && (
+        <Image
+          data={icon}
+          fill={true}
+          // A tile is at most about 18rem wide: two in a row in a column
+          // just short of four's room.
+          sizes="18rem"
+          className="cursor-pointer object-cover"
+        />
       )}
+      <Label className={icon ? "sr-only" : "cursor-pointer text-sm"}>
+        {label}
+      </Label>
     </Radio>
   );
 }
@@ -73,9 +64,8 @@ export default function BankChooser({
   setBank,
 }: BankChooserProps) {
   return (
-    // Four in a row only where there's room for them and their radio
-    // buttons, by the space it has rather than the screen's: beside the
-    // form, the column is narrow.
+    // Four in a row only where there's room for them, by the space it has
+    // rather than the screen's: beside the form, the column is narrow.
     <RadioGroup value={bank} onChange={setBank} className="@container">
       <Label className="mb-2 block text-sm leading-6 font-medium text-slate-900">
         {bankText}

@@ -27,7 +27,7 @@ export default function SummaryBar({
   const panelId = useId();
 
   return (
-    <div className="rounded-xl bg-white ring-1 ring-slate-200 ring-inset">
+    <div className="rounded-xl bg-white ring-1 ring-slate-400 ring-inset">
       <button
         type="button"
         aria-expanded={open}

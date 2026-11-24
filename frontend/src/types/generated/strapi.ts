@@ -241,6 +241,7 @@ export interface StrapiDonationSection {
   overviewTitle: string | null;
   causesHintText: string | null;
   notChosenText: string | null;
+  nothingChosenText: string | null;
   supportOptionText: string | null;
   supportOptionDescription: string | null;
   specifyCharitiesText: string | null;

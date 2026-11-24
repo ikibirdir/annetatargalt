@@ -60,6 +60,9 @@
     "notChosenText": {
       "type": "string"
     },
+    "nothingChosenText": {
+      "type": "string"
+    },
     "supportOptionText": {
       "type": "string"
     },

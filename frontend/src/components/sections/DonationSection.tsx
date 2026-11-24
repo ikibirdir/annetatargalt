@@ -527,7 +527,7 @@ function DonationForm({
       supportOrganization={supportOrganization}
       supportTitle={props.supportOptionText}
       money={money}
-      emptyText={props.chooseCauseText}
+      emptyText={props.nothingChosenText}
       className={className}
     />
   );

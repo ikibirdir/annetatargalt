@@ -410,6 +410,7 @@ export interface SectionsDonationSection extends Struct.ComponentSchema {
     newsletterText: Schema.Attribute.RichText;
     nextButtonText: Schema.Attribute.String;
     notChosenText: Schema.Attribute.String;
+    nothingChosenText: Schema.Attribute.String;
     oneTimeDonationSummary: Schema.Attribute.RichText;
     otherAmountOptionText: Schema.Attribute.String;
     otherAmountText: Schema.Attribute.String;

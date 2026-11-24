@@ -12,7 +12,7 @@ interface DonationLinesProps {
   /** Support's line: "Support Anneta Targalt". */
   supportTitle: string | null;
   money: (amount: number) => string;
-  /** Instead of the lines while nothing is chosen. */
+  /** Instead of the lines while nothing is chosen: "Nothing selected". */
   emptyText: string | null;
   className?: string;
 }
