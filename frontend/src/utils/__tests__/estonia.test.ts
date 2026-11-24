@@ -49,4 +49,13 @@ describe("formatEstonianAmountWithCents", () => {
     expect(formatEstonianAmountWithCents(1234.5)).toBe("1234,50");
     expect(formatEstonianAmountWithCents(1234.56)).toBe("1234,56");
   });
+
+  it("rounds to the cent", () => {
+    // A share of a donation, worked out in floating point.
+    expect(formatEstonianAmountWithCents(1.835999999999)).toBe("1,84");
+    expect(formatEstonianAmountWithCents(0.1 + 0.2)).toBe("0,30");
+    expect(formatEstonianAmountWithCents(12345.678)).toBe("12 345,68");
+    expect(formatEstonianAmount(1.835999999999)).toBe("1,84");
+    expect(formatEstonianAmount(29.999999)).toBe("30");
+  });
 });

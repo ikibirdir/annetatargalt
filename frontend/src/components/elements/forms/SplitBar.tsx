@@ -35,6 +35,10 @@ export default function SplitBar({
   locale,
 }: SplitBarProps) {
   const barRef = useRef<HTMLDivElement>(null);
+  // How far from its handle's centre the pointer took hold of it, so a drag
+  // moves the border by as much as the pointer moves, and a press alone
+  // (a tap, on a phone) doesn't move it at all.
+  const grip = useRef(0);
   const shares = parts.map(({ share }) => share);
   // Where each handle sits: the running total up to it.
   const borders = shares
@@ -87,11 +91,13 @@ export default function SplitBar({
             style={{ left: `${border}%` }}
             onPointerDown={(event) => {
               event.currentTarget.setPointerCapture(event.pointerId);
-              moveTo(index, event.clientX);
+              const { left, width } =
+                event.currentTarget.getBoundingClientRect();
+              grip.current = event.clientX - (left + width / 2);
             }}
             onPointerMove={(event) => {
               if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-                moveTo(index, event.clientX);
+                moveTo(index, event.clientX - grip.current);
               }
             }}
             onKeyDown={(event) => {

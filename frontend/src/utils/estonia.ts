@@ -32,13 +32,16 @@ export function formatEstonianAmount(number: number): string {
 }
 
 export function formatEstonianAmountWithCents(number: number): string {
-  const asString = String(number);
-  const [integerPart, decimalPart] = asString.split(".");
+  // Rounded to the cent first: an amount worked out from shares has a
+  // floating-point tail, as 1.835999999999 (Intl.NumberFormat, which the
+  // English amounts go through, rounds too).
+  const [integerPart, decimalPart] = (Math.round(number * 100) / 100)
+    .toFixed(2)
+    .split(".");
   const integerWithSpaces =
     integerPart.length >= 5
       ? integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, " ")
       : integerPart;
-  const decimal = decimalPart ? "," + decimalPart.padEnd(2, "0") : ",00";
 
-  return integerWithSpaces + decimal;
+  return `${integerWithSpaces},${decimalPart}`;
 }

@@ -24,6 +24,12 @@ export const form = (page: Page) => ({
   support: page
     .locator("form")
     .getByRole("checkbox", { name: startingWith("Support option text") }),
+  /** The card around a cause's box. */
+  causeCard: (title: string) =>
+    page
+      .locator("form")
+      .getByRole("checkbox", { name: startingWith(title) })
+      .locator("xpath=ancestor::div[contains(@class, 'rounded-xl')][1]"),
   /** The way to a cause's charities, while it's the fund alone. */
   specify: (cause: string) =>
     page.getByRole("button", { name: `Specify charities text: ${cause}` }),
@@ -37,6 +43,8 @@ export const form = (page: Page) => ({
   /** The split bar's handles, from the left. */
   borders: page.getByRole("slider"),
   editDonation: page.getByRole("button", { name: "Edit donation text" }),
+  /** The link back at the top of the details. */
+  back: page.getByRole("button", { name: "Back button text" }),
   firstName: page.getByLabel("First name text"),
   lastName: page.getByLabel("Last name text"),
   email: page.getByLabel("Email text", { exact: true }),

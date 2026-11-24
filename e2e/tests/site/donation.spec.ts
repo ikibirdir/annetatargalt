@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import {
   form,
   fillDetails,
@@ -21,6 +21,13 @@ const CLIMATE = CAUSES.climate.title;
 const SUPPORT = "Support option text";
 
 /** Moves the split bar's first border this many percent to the right. */
+/** Where an element is on the page, which it has to be. */
+async function box(locator: Locator) {
+  const found = await locator.boundingBox();
+  if (!found) throw new Error("Not on the page");
+  return found;
+}
+
 async function moveFirstBorder(page: Page, percent: number) {
   const border = form(page).borders.first();
   await border.focus();
@@ -277,6 +284,64 @@ test.describe("where the donation goes", () => {
     await expect.poll(() => shareOf(page, SUPPORT)).toBe("5%");
   });
 
+  test("ticks a cause or a charity from anywhere on its card", async ({
+    page,
+  }) => {
+    await page.goto("/anneta");
+    const f = form(page);
+    // Its padding, above the box and the title.
+    const card = f.causeCard(HEALTH);
+    const { width } = await box(card);
+    await card.click({ position: { x: width / 2, y: 5 } });
+    await expect(f.choice(HEALTH)).toBeChecked();
+    await card.click({ position: { x: width / 2, y: 5 } });
+    await expect(f.choice(HEALTH)).not.toBeChecked();
+
+    // Its button to the charities opens them, and leaves the box as it is.
+    await choose(f.choice(HEALTH));
+    await f.specify(HEALTH).click();
+    await expect(f.choice(HEALTH)).toBeChecked();
+    const charities = page.getByRole("dialog");
+    const alpha = charities
+      .getByRole("checkbox", { name: /^Alpha Aid/ })
+      .locator("xpath=ancestor::div[contains(@class, 'rounded-lg')][1]");
+    const alphaBox = await box(alpha);
+    await alpha.click({ position: { x: alphaBox.width / 2, y: 4 } });
+    await expect(
+      charities.getByRole("checkbox", { name: /^Alpha Aid/ }),
+    ).toBeChecked();
+  });
+
+  test("moves a border as far as its handle is dragged, not on a press", async ({
+    page,
+  }) => {
+    await page.goto("/anneta");
+    const f = form(page);
+    await choose(f.choice(HEALTH));
+    await choose(f.choice(CLIMATE));
+    const handle = f.borders.first();
+    await expect(handle).toHaveAttribute("aria-valuenow", "50");
+    await handle.scrollIntoViewIfNeeded();
+    const grip = await box(handle);
+    const bar = await box(handle.locator("xpath=.."));
+
+    // Pressed near its edge, off its centre, and let go: nothing moves. (It
+    // takes the focus, so the press was on it.)
+    const x = grip.x + grip.width - 3;
+    const y = grip.y + grip.height / 2;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.up();
+    await expect(handle).toBeFocused();
+    await expect(handle).toHaveAttribute("aria-valuenow", "50");
+
+    // Dragged a tenth of the bar from there: a tenth of the split.
+    await page.mouse.down();
+    await page.mouse.move(x + bar.width / 10, y, { steps: 5 });
+    await page.mouse.up();
+    await expect(handle).toHaveAttribute("aria-valuenow", "60");
+  });
+
   test("keeps a split the donor adjusted as choices come and go", async ({
     page,
   }) => {
@@ -323,6 +388,35 @@ test.describe("the form", () => {
     await expect(f.donate).toBeDisabled();
     await f.idCode.fill("37605030299");
     await expect(f.donate).toBeEnabled();
+  });
+
+  test("steps back and forth with the browser, Back and Edit donation", async ({
+    page,
+  }) => {
+    await page.goto("/anneta");
+    const f = form(page);
+    await choose(f.choice(HEALTH));
+    await f.next.click();
+    await expect(f.firstName).toBeVisible();
+    // Marks this page, to tell a step in it from loading it again.
+    await page.evaluate(() => document.body.setAttribute("data-same", ""));
+
+    // The browser's back button goes back a step, its forward one on again.
+    await page.goBack();
+    await expect(f.choice(HEALTH)).toBeChecked();
+    await expect(f.firstName).toBeHidden();
+    await expect(page).toHaveURL(/\/anneta$/);
+    await page.goForward();
+    await expect(f.firstName).toBeVisible();
+    await expect(page.locator("body[data-same]")).toHaveCount(1);
+
+    // So do the link at the top and the button by the donation.
+    await f.back.click();
+    await expect(f.next).toBeVisible();
+    await f.next.click();
+    await f.editDonation.click();
+    await expect(f.next).toBeVisible();
+    await expect(page.locator("body[data-same]")).toHaveCount(1);
   });
 
   test("won't take zero as another amount", async ({ page }) => {

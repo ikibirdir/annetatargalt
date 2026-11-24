@@ -29,7 +29,7 @@ import Markdown from "../elements/Markdown";
 import TintedImage from "../elements/TintedImage";
 import { format } from "@/utils/string";
 import { classes } from "@/utils/react";
-import { PencilIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, PencilIcon } from "@heroicons/react/24/outline";
 import CauseChooser from "../elements/forms/CauseChooser";
 import Proportions from "@/utils/proportions";
 import type { ProportionKey } from "@/utils/proportions";
@@ -297,6 +297,34 @@ function DonationForm({
     keptDraft.current = draftJson;
   }, [keepsDraft, draftJson]);
 
+  // Each step has its own entry in the browser's history, so its back
+  // button goes back a step instead of leaving the form, and forward again.
+  // (Next.js keeps its own state in an entry pushed like this, so the page
+  // stays as it is.) Forward to the details only with a cause still chosen.
+  const canGoOn = useRef(stageValidity[0]);
+  useEffect(() => {
+    canGoOn.current = stageValidity[0];
+  });
+  useEffect(() => {
+    const onPopState = (event: PopStateEvent) => {
+      const state: { donationStage?: number } | null = event.state;
+      setStage(state?.donationStage === 1 && canGoOn.current ? 1 : 0);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+  const toDetails = () => {
+    window.history.pushState({ donationStage: 1 }, "");
+    setStage(1);
+  };
+  // Back through the history when the details have their entry there (not
+  // when a draft opened the form on them), to stay in step with its buttons.
+  const backToDonation = () => {
+    const state: { donationStage?: number } | null = window.history.state;
+    if (state?.donationStage === 1) window.history.back();
+    else setStage(0);
+  };
+
   // A new step starts at the top of the form: on a phone, Next is far down.
   const sectionRef = useRef<HTMLElement>(null);
   const scrolledStage = useRef(stage);
@@ -519,7 +547,7 @@ function DonationForm({
             step: "info",
             type: donation.type,
           });
-          setStage(1);
+          toDetails();
         }}
         disabled={!stageValidity[0]}
         buttonType="button"
@@ -532,11 +560,22 @@ function DonationForm({
     </div>
   );
 
-  // Back from the details to the amount and causes.
+  // Back from the details to the amount and causes: a link at the top, and
+  // the button by the donation.
+  const back = (
+    <button
+      type="button"
+      onClick={backToDonation}
+      className="-my-1.5 inline-flex cursor-pointer items-center gap-1.5 self-start py-1.5 text-sm font-semibold text-primary-700 hover:opacity-70"
+    >
+      <ArrowLeftIcon className="h-4 w-4" aria-hidden={true} />
+      {props.backButtonText}
+    </button>
+  );
   const editDonation = (
     <button
       type="button"
-      onClick={() => setStage(0)}
+      onClick={backToDonation}
       className="inline-flex min-h-8 cursor-pointer items-center gap-1.5 self-start rounded-full border border-slate-400 bg-white px-3 py-1 text-[13px] font-semibold text-primary-700 hover:bg-primary-50"
     >
       <PencilIcon className="h-3.5 w-3.5" aria-hidden={true} />
@@ -728,6 +767,7 @@ function DonationForm({
             className={classes(formClasses, "pt-16 pb-32")}
             onSubmit={(event) => event.preventDefault()}
           >
+            {back}
             {detailsFields(false)}
           </form>
           <div className="border-l border-slate-300 pt-16 pb-32 pl-12">
@@ -751,6 +791,7 @@ function DonationForm({
           className={classes(formClasses, "max-w-lg")}
           onSubmit={(event) => event.preventDefault()}
         >
+          {back}
           <SummaryBar
             title={props.overviewTitle}
             typeText={typeText}

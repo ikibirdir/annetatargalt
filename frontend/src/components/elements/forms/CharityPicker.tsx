@@ -157,7 +157,7 @@ export default function CharityPicker({
                     on
                       ? "bg-primary-50 ring-2 ring-primary-600"
                       : "bg-white ring-1 ring-slate-300",
-                    "flex items-start gap-3 rounded-lg p-3 ring-inset",
+                    "relative flex items-start gap-3 rounded-lg p-3 ring-inset",
                   )}
                 >
                   <input
@@ -169,17 +169,18 @@ export default function CharityPicker({
                     aria-describedby={describedBy || undefined}
                     className={classes(
                       color.text,
-                      "mt-0.5 h-4.5 w-4.5 flex-none cursor-pointer rounded-sm border-slate-300 checked:border-transparent focus:ring-primary-600",
+                      "relative z-10 mt-0.5 h-4.5 w-4.5 flex-none cursor-pointer rounded-sm border-slate-300 checked:border-transparent focus:ring-primary-600",
                     )}
                   />
                   <div className="min-w-0 flex-1">
-                    {/* The name and the description are labels; the link to
-                        the organization's page under them isn't, so
-                        following it doesn't tick the box. */}
+                    {/* The name's label is stretched over the whole card, so
+                        all of it ticks the box; the box itself and the link
+                        to the organization's page sit above it, so following
+                        the link doesn't. */}
                     <label
                       htmlFor={id}
                       id={`${id}-name`}
-                      className="block cursor-pointer text-[15px] leading-5 font-semibold text-slate-900"
+                      className="block cursor-pointer text-[15px] leading-5 font-semibold text-slate-900 after:absolute after:inset-0 after:rounded-lg"
                     >
                       {organization.title}
                       {organization.internalId === recommendedId &&
@@ -202,7 +203,7 @@ export default function CharityPicker({
                       <Anchor
                         href={page}
                         newTab={true}
-                        className="inline-block py-1.5 text-[13px] leading-[18px] font-semibold text-primary-700 underline hover:opacity-70"
+                        className="relative inline-block py-1.5 text-[13px] leading-[18px] font-semibold text-primary-700 underline hover:opacity-70"
                       >
                         {texts.learnMore}
                         <span className="sr-only">

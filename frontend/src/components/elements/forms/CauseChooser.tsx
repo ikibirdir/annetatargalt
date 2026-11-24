@@ -94,7 +94,7 @@ function ChoiceCard({
         on
           ? "bg-primary-50 ring-2 ring-primary-600"
           : "bg-white ring-1 ring-slate-400",
-        "rounded-xl ring-inset",
+        "relative rounded-xl ring-inset",
       )}
     >
       <div
@@ -104,7 +104,10 @@ function ChoiceCard({
         )}
       >
         <div className="flex min-w-0 flex-1 flex-col items-start">
-          <label className="flex cursor-pointer items-start gap-3 self-stretch">
+          {/* Stretched over the whole card, so all of it ticks the box,
+              but for the box itself and the card's links and buttons, which
+              sit above. */}
+          <label className="flex cursor-pointer items-start gap-3 self-stretch after:absolute after:inset-0 after:rounded-xl">
             <input
               id={inputId}
               type="checkbox"
@@ -113,7 +116,7 @@ function ChoiceCard({
               aria-describedby={describedBy}
               className={classes(
                 color.text,
-                "mt-0.5 h-5 w-5 flex-none cursor-pointer rounded-sm border-slate-400 checked:border-transparent focus:ring-primary-600",
+                "relative z-10 mt-0.5 h-5 w-5 flex-none cursor-pointer rounded-sm border-slate-400 checked:border-transparent focus:ring-primary-600",
               )}
             />
             <span className="min-w-0 flex-1 text-base leading-6 font-semibold text-slate-900">
@@ -122,7 +125,7 @@ function ChoiceCard({
           </label>
           {below}
         </div>
-        {/* The checkbox's too: all of the card but its links ticks it. */}
+        {/* The checkbox's too, its share and amount part of its name. */}
         <label
           htmlFor={inputId}
           className="flex-none cursor-pointer self-center text-right whitespace-nowrap"
@@ -256,7 +259,7 @@ export default function CauseChooser({
               onClick={() => setPickerCause(cause.id)}
               aria-label={`${text ?? ""}: ${cause.title ?? ""}`}
               className={classes(
-                "cursor-pointer py-2.5 text-[13px] leading-[18px] font-semibold text-primary-700 underline hover:opacity-70",
+                "relative cursor-pointer py-2.5 text-[13px] leading-[18px] font-semibold text-primary-700 underline hover:opacity-70",
                 className,
               )}
             >
@@ -343,7 +346,7 @@ export default function CauseChooser({
               <div id={supportDescriptionId} className="mt-0.5 ml-8">
                 {/* Markdown, for the link to more about the platform. */}
                 <Markdown
-                  className="prose prose-sm max-w-none text-[13px] leading-[18px] text-slate-500 prose-primary [&_p]:my-0"
+                  className="prose prose-sm max-w-none text-[13px] leading-[18px] text-slate-500 prose-primary [&_a]:relative [&_p]:my-0"
                   newTabs="all"
                 >
                   {texts.supportDescription}

@@ -347,6 +347,70 @@ describe("calculateAmounts", () => {
     expect(amounts).toHaveLength(1);
     expect(amounts[0].organizationInternalId).toBe("org1");
   });
+
+  it("adds up to the total in cents, with no share of a cent rounded to 0", () => {
+    // €13.28 split 30/59/9/2, the last cause's split 40/56/4: its last
+    // organization's share is €0.0106. Rounded, the amounts come to 13.29,
+    // and taking the cent off the last one used to leave it at 0.
+    const p = makeWithSubs([
+      [1, 30, [["x", 100]]],
+      [2, 59, [["y", 100]]],
+      [4, 9, [["support", 100]]],
+      [
+        3,
+        2,
+        [
+          ["a", 40],
+          ["b", 56],
+          ["c", 4],
+        ],
+      ],
+    ]);
+    const causes = {
+      data: [
+        { id: 1, organizations: [{ internalId: "x" }] },
+        { id: 2, organizations: [{ internalId: "y" }] },
+        { id: 4, organizations: [{ internalId: "support" }] },
+        {
+          id: 3,
+          organizations: [
+            { internalId: "a" },
+            { internalId: "b" },
+            { internalId: "c" },
+          ],
+        },
+      ],
+    };
+    const amounts = p.calculateAmounts(13.28, causes);
+    expect(amounts).toEqual([
+      { organizationInternalId: "x", amount: 3.98 },
+      { organizationInternalId: "y", amount: 7.84 },
+      { organizationInternalId: "support", amount: 1.19 },
+      { organizationInternalId: "a", amount: 0.11 },
+      { organizationInternalId: "b", amount: 0.15 },
+      { organizationInternalId: "c", amount: 0.01 },
+    ]);
+    const cents = amounts.reduce((sum, { amount }) => sum + amount * 100, 0);
+    expect(Math.round(cents)).toBe(1328);
+  });
+
+  it("hands the cents left over to the largest remainders", () => {
+    // €0.10 in thirds: 3.33 cents each, and the cent left to the first.
+    const p = makeWithSubs([
+      [1, 34, [["org1", 100]]],
+      [2, 33, [["org2", 100]]],
+      [3, 33, [["org3", 100]]],
+    ]);
+    const causes = {
+      data: [1, 2, 3].map((id) => ({
+        id,
+        organizations: [{ internalId: `org${id}` }],
+      })),
+    };
+    expect(p.calculateAmounts(0.1, causes).map(({ amount }) => amount)).toEqual(
+      [0.04, 0.03, 0.03],
+    );
+  });
 });
 
 describe("fromStrapiDataWithEqualProportions", () => {

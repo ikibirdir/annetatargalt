@@ -370,43 +370,57 @@ export default class Proportions {
     totalAmount: number,
     causes: { data: CauseData[] },
   ): AmountEntry[] {
-    const amounts: AmountEntry[] = [];
-
-    causes.data.forEach((cause) => {
+    // In cents: each organization's exact share rounded down, and the cents
+    // that leaves over handed out one each, the largest remainders first. So
+    // the amounts add up to the total, and none is ever rounded down below
+    // its share: one of a cent can't end at 0, which the backend refuses.
+    const totalCents = Math.round(totalAmount * 100);
+    const shares = causes.data.flatMap((cause) => {
       const causeProportion = this.getProportion(cause.id);
-      cause.organizations.filter(hasInternalId).forEach((organization) => {
-        const organizationProportion = this.getSubProportion(
-          cause.id,
-          organization.internalId,
-        );
-        const proportion = (causeProportion * organizationProportion) / 10000;
-        const amount = totalAmount * proportion;
-        const roundedAmount = Math.round(amount * 100) / 100;
-        if (roundedAmount > 0) {
-          amounts.push({
-            organizationInternalId: organization.internalId,
-            amount: roundedAmount,
-          });
-        }
+      return cause.organizations.filter(hasInternalId).map((organization) => {
+        // In ten-thousandths of a cent: whole numbers, as the shares are
+        // whole percents, so the remainders compare exactly.
+        const share =
+          totalCents *
+          causeProportion *
+          this.getSubProportion(cause.id, organization.internalId);
+        const cents = Math.floor(share / 10000);
+        return {
+          organizationInternalId: organization.internalId,
+          remainder: share - cents * 10000,
+          cents,
+          chosen: share > 0,
+        };
       });
     });
-
-    // Avoid rounding errors. Nothing chosen (the form's start) has nothing to
-    // correct, and nowhere to put a correction.
-    const total = amounts.reduce((sum, item) => sum + item.amount, 0);
-    if (total !== totalAmount && amounts.length > 0) {
-      const discrepancy = Math.round((totalAmount - total) * 100) / 100;
-      const timesToAdd = Math.floor(Math.abs(discrepancy) / 0.01);
-      const adder = discrepancy / timesToAdd;
-
-      for (let i = 0; i < timesToAdd; i++) {
-        const index = amounts.length - 1 - (i % amounts.length);
-        amounts[index].amount =
-          Math.round((amounts[index].amount + adder) * 100) / 100;
-      }
+    // Nothing chosen (the form's start) has nothing to hand out, and nowhere
+    // to put it.
+    const chosen = shares.filter((share) => share.chosen);
+    let left = totalCents - chosen.reduce((sum, { cents }) => sum + cents, 0);
+    // The largest remainders first, and the earlier ones of equals (a stable
+    // sort); round again if the shares add up to less than the whole.
+    const byRemainder = [...chosen].sort((a, b) => b.remainder - a.remainder);
+    for (let i = 0; left > 0 && byRemainder.length > 0; i++, left--) {
+      byRemainder[i % byRemainder.length].cents++;
+    }
+    // Shares adding up to more than the whole: cents back from the largest,
+    // never below one.
+    while (left < 0) {
+      const largest = chosen.reduce(
+        (max, share) => (share.cents > max.cents ? share : max),
+        chosen[0],
+      );
+      if (largest.cents <= 1) break;
+      largest.cents--;
+      left++;
     }
 
-    return amounts;
+    return chosen
+      .filter(({ cents }) => cents > 0)
+      .map(({ organizationInternalId, cents }) => ({
+        organizationInternalId,
+        amount: cents / 100,
+      }));
   }
 
   /**
