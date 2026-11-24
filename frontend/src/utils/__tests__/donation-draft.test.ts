@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import { donationDraftJson, parseDonationDraft } from "../donation-draft";
 import type { DonationState } from "../donation-draft";
 import Proportions from "../proportions";
-import { SUPPORT_KEY, splitChoices } from "../donation-amounts";
 
 const causes = [
   {
@@ -38,6 +37,8 @@ function donation(changes: Partial<DonationState> = {}): DonationState {
     dedicationEmail: "jaan@example.com",
     dedicationMessage: "Palju õnne!",
     proportions: Proportions.fromStrapiData(causes),
+    addTip: true,
+    tipPercent: 10,
     paymentMethod: "cardPayments",
     // not the form's default, so that keeping it shows
     newsletter: false,
@@ -93,37 +94,6 @@ describe("donation drafts", () => {
     expect(draft?.donation.proportions).toEqual(proportions);
     expect(draft?.donation.proportions.getProportion(2)).toBe(20);
     expect(draft?.donation.proportions.getSubProportion(1, "org-b")).toBe(70);
-  });
-
-  it("keeps support's share beside the causes", () => {
-    const withSupport = splitChoices({ data: causes }, "tip-org");
-    const proportions = Proportions.fromStrapiDataNoneChosen(
-      withSupport.data,
-    ).withShares([1, SUPPORT_KEY], [90, 10]);
-    const json = donationDraftJson("null/null", 1, donation({ proportions }));
-
-    const draft = parseDonationDraft(json, "null/null", {
-      proportions: Proportions.fromStrapiDataNoneChosen(withSupport.data),
-      banks,
-    });
-    expect(draft?.stage).toBe(1);
-    expect(draft?.donation.proportions.getProportion(1)).toBe(90);
-    expect(draft?.donation.proportions.getProportion(SUPPORT_KEY)).toBe(10);
-  });
-
-  it("starts at the split when support wasn't a choice yet", () => {
-    const json = donationDraftJson("null/null", 1, donation());
-    const current = Proportions.fromStrapiDataNoneChosen(
-      splitChoices({ data: causes }, "tip-org").data,
-    );
-
-    const draft = parseDonationDraft(json, "null/null", {
-      proportions: current,
-      banks,
-    });
-    expect(draft?.stage).toBe(0);
-    expect(draft?.donation.proportions).toEqual(current);
-    expect(draft?.donation.email).toBe("mari@example.com");
   });
 
   it("reads a draft from the form with sliders, passing over their locks", () => {
@@ -214,6 +184,9 @@ describe("donation drafts", () => {
     ).toBeNull();
     expect(
       parseDonationDraft(withField("type", "weekly"), "null/null", current()),
+    ).toBeNull();
+    expect(
+      parseDonationDraft(withField("addTip", "yes"), "null/null", current()),
     ).toBeNull();
     expect(
       parseDonationDraft(

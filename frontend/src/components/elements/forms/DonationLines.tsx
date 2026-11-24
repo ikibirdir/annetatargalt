@@ -7,12 +7,10 @@ interface DonationLinesProps {
   amount: number;
   proportions: Proportions;
   causes: { data: StrapiCause[] };
-  /** The platform's organization, which support goes to. */
-  supportOrganization: string | null;
-  /** Support's line: "Support Anneta Targalt". */
-  supportTitle: string | null;
+  tipOrganization: string | null;
+  tipAmount: number;
   money: (amount: number) => string;
-  /** Instead of the lines while nothing is chosen: "Nothing selected". */
+  /** Instead of the lines while no cause is chosen: "Nothing selected". */
   emptyText: string | null;
   className?: string;
 }
@@ -20,25 +18,22 @@ interface DonationLinesProps {
 /**
  * The donation line by line: each chosen cause with its amount and the
  * organizations it goes to (each with its own amount when there are several),
- * and support for the platform when chosen.
+ * and the support for the platform when added.
  */
 export default function DonationLines({
   amount,
   proportions,
   causes,
-  supportOrganization,
-  supportTitle,
+  tipOrganization,
+  tipAmount,
   money,
   emptyText,
   className,
 }: DonationLinesProps) {
-  const amounts = amountsByCause(
-    proportions,
-    amount,
-    causes,
-    supportOrganization,
+  // Support isn't one of the choices here: it's added on top, its own line.
+  const lines = amountsByCause(proportions, amount, causes, null).causes.filter(
+    (line) => line.amount > 0,
   );
-  const lines = amounts.causes.filter((line) => line.amount > 0);
 
   return (
     <ul
@@ -47,7 +42,7 @@ export default function DonationLines({
         className ?? "",
       )}
     >
-      {lines.length === 0 && amounts.support === 0 && (
+      {lines.length === 0 && (
         <li className="py-3 text-slate-500">{emptyText}</li>
       )}
       {lines.map(({ cause, amount: causeAmount, organizations }) => (
@@ -72,10 +67,10 @@ export default function DonationLines({
           </ul>
         </li>
       ))}
-      {amounts.support > 0 && (
+      {tipAmount > 0 && (
         <li className="flex justify-between gap-3 py-3 font-medium text-slate-900">
-          <span>{supportTitle}</span>
-          <span className="whitespace-nowrap">{money(amounts.support)}</span>
+          <span>{tipOrganization}</span>
+          <span className="whitespace-nowrap">{money(tipAmount)}</span>
         </li>
       )}
     </ul>

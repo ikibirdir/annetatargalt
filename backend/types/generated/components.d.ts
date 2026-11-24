@@ -440,6 +440,8 @@ export interface SectionsDonationSection extends Struct.ComponentSchema {
     termsNeededText: Schema.Attribute.String;
     termsText: Schema.Attribute.RichText;
     tipCheckboxText: Schema.Attribute.String;
+    tipMoreText: Schema.Attribute.String;
+    tipSummaryText: Schema.Attribute.Text;
     tipText: Schema.Attribute.RichText;
     tipTitle: Schema.Attribute.String;
     title: Schema.Attribute.String;

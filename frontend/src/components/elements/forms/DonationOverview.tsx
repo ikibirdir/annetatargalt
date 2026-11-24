@@ -8,6 +8,8 @@ interface DonationOverviewProps {
   lines: React.ReactNode;
   /** Under the lines: the way back to change the donation, on Details. */
   edit?: React.ReactNode;
+  /** Between the lines and the total: the offer to add the 5%. */
+  support?: React.ReactNode;
   totalText: string | null;
   total: string;
   /** After the total: Next on the first step, paying on Details. */
@@ -23,6 +25,7 @@ export default function DonationOverview({
   typeText,
   lines,
   edit,
+  support,
   totalText,
   total,
   children,
@@ -47,6 +50,7 @@ export default function DonationOverview({
 
       {lines}
       {edit}
+      {support}
 
       <div className="flex items-baseline justify-between gap-3">
         <span className="font-semibold text-slate-900">{totalText}</span>
