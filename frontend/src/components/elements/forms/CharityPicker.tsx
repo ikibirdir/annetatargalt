@@ -11,7 +11,6 @@ import { XMarkIcon } from "@heroicons/react/24/outline";
 import Anchor from "../Anchor";
 import Button from "../Button";
 import SplitBar from "./SplitBar";
-import { splitColor } from "./split-colors";
 import type Proportions from "@/utils/proportions";
 import type { StrapiOrganization } from "@/types/generated/strapi";
 import { pagePath } from "@/utils/locale";
@@ -135,10 +134,9 @@ export default function CharityPicker({
             <legend className="sr-only">
               {format(texts.title ?? "", { cause: causeTitle })}
             </legend>
-            {organizations.map((organization, index) => {
+            {organizations.map((organization) => {
               const on = chosen.includes(organization.internalId);
               const share = draft.getProportion(organization.internalId);
-              const color = splitColor(index);
               const id = `${idPrefix}-${organization.internalId}`;
               const page =
                 causeSlug && organization.slug
@@ -175,10 +173,7 @@ export default function CharityPicker({
                     onChange={() => toggle(organization.internalId)}
                     aria-labelledby={`${id}-name`}
                     aria-describedby={describedBy || undefined}
-                    className={classes(
-                      color.text,
-                      "relative z-10 mt-0.5 h-4.5 w-4.5 flex-none cursor-pointer rounded-sm border-slate-300 checked:border-transparent focus:ring-primary-600",
-                    )}
+                    className="relative z-10 mt-0.5 h-4.5 w-4.5 flex-none cursor-pointer rounded-sm border-slate-300 text-primary-600 checked:border-transparent focus:ring-primary-600"
                   />
                   <div className="min-w-0 flex-1">
                     {/* The name's label is stretched over the whole card, so
@@ -226,12 +221,7 @@ export default function CharityPicker({
                       id={`${id}-share`}
                       className="flex-none cursor-pointer self-center text-right whitespace-nowrap"
                     >
-                      <span
-                        className={classes(
-                          color.text,
-                          "block text-[15px] leading-5 font-bold",
-                        )}
-                      >
+                      <span className="block text-[15px] leading-5 font-bold text-primary-700">
                         {share}%
                       </span>
                       <span className="block text-[13px] leading-[18px] text-slate-500">
@@ -269,7 +259,6 @@ export default function CharityPicker({
                   label: organization.title ?? "",
                   share: draft.getProportion(organization.internalId),
                 }))}
-                colorIndexes={chosenIndexes.map(({ index }) => index)}
                 onChange={(shares) =>
                   setDraft(
                     draft.withShares(

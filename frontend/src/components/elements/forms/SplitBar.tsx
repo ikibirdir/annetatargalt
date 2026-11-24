@@ -6,7 +6,6 @@ import { moveBorder } from "@/utils/split";
 import { format } from "@/utils/string";
 import { uiText } from "@/utils/ui-text";
 import type { Locale } from "@/utils/locale";
-import { splitColor } from "./split-colors";
 
 export interface SplitPart {
   /** The cause's or organization's own key: labels can repeat, or be empty. */
@@ -18,24 +17,18 @@ export interface SplitPart {
 interface SplitBarProps {
   /** The chosen ones, in order, each with its share; two or more. */
   parts: SplitPart[];
-  /** Colours by position in the full list, so a part keeps its colour. */
-  colorIndexes: number[];
   onChange: (shares: number[]) => void;
   locale: Locale;
 }
 
 /**
- * The whole split as one bar: a part per choice, and a handle between each
- * two that moves money only between them. The total stays 100%, and every
- * part keeps at least 1%. Handles are sliders for the keyboard too: arrows
- * move by 1%, with Shift by 5%.
+ * The whole split as one bar: a part per choice, with its name and share
+ * where there's room, and a handle between each two that moves money only
+ * between them. The total stays 100%, and every part keeps at least 1%.
+ * Handles are sliders for the keyboard too: arrows move by 1%, with Shift by
+ * 5%.
  */
-export default function SplitBar({
-  parts,
-  colorIndexes,
-  onChange,
-  locale,
-}: SplitBarProps) {
+export default function SplitBar({ parts, onChange, locale }: SplitBarProps) {
   const barRef = useRef<HTMLDivElement>(null);
   // How far from its handle's centre the pointer took hold of it, so a drag
   // moves the border by as much as the pointer moves, and a press alone
@@ -58,18 +51,32 @@ export default function SplitBar({
   }
 
   return (
-    <div ref={barRef} className="relative my-2 h-12 touch-none select-none">
+    <div ref={barRef} className="relative my-2 h-16 touch-none select-none">
       <div className="flex h-full overflow-hidden rounded-lg">
-        {parts.map((part, index) => (
+        {parts.map((part) => (
           <div
             key={part.id}
-            className={classes(
-              splitColor(colorIndexes[index] ?? index).background,
-              "flex flex-none items-center justify-center overflow-hidden text-sm font-bold whitespace-nowrap text-white",
-            )}
+            className="@container flex flex-none flex-col items-center justify-center overflow-hidden bg-primary-100 text-center text-primary-900"
             style={{ flexBasis: `${part.share}%` }}
           >
-            {part.share >= 12 ? `${part.share}%` : ""}
+            {/* Its name, small, over its share: two lines at most,
+                broken only between words, and cut short where it doesn't
+                fit; left out where there's room for hardly a letter. */}
+            <div className="hidden w-full px-2.5 @min-[3.5rem]:block">
+              <p className="line-clamp-2 text-[11px] leading-[13px] font-medium text-ellipsis">
+                {part.label}
+              </p>
+            </div>
+            {/* Its share, wherever it fits between the handles, which reach
+                7px into it: 24px wide with one digit, 33px with two. */}
+            <span
+              className={classes(
+                part.share < 10 ? "@min-[38px]:inline" : "@min-[47px]:inline",
+                "hidden text-sm leading-5 font-bold whitespace-nowrap",
+              )}
+            >
+              {part.share}%
+            </span>
           </div>
         ))}
       </div>
@@ -118,7 +125,8 @@ export default function SplitBar({
               onChange(moveBorder(shares, index, position));
             }}
           >
-            <span className="block h-full w-3.5 rounded-lg border-2 border-slate-900 bg-white shadow-md" />
+            {/* In the site's sliders' dark green. */}
+            <span className="block h-full w-3.5 rounded-lg bg-primary-600 shadow-md" />
           </div>
         );
       })}

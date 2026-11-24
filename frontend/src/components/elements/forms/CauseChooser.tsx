@@ -5,7 +5,6 @@ import Markdown from "../Markdown";
 import CharityPicker from "./CharityPicker";
 import type { CharityPickerTexts } from "./CharityPicker";
 import SplitBar from "./SplitBar";
-import { splitColor } from "./split-colors";
 import type Proportions from "@/utils/proportions";
 import type { ProportionKey } from "@/utils/proportions";
 import type { StrapiCause } from "@/types/generated/strapi";
@@ -56,8 +55,6 @@ interface ChoiceCardProps {
   inputId: string;
   on: boolean;
   onToggle: () => void;
-  /** Its colour in the split bar, for the checkbox and the share too. */
-  colorIndex: number;
   title: string | null;
   /** Under the title: what the choice is, or the way to its charities. */
   below?: React.ReactNode;
@@ -78,7 +75,6 @@ function ChoiceCard({
   inputId,
   on,
   onToggle,
-  colorIndex,
   title,
   below,
   describedBy,
@@ -86,8 +82,6 @@ function ChoiceCard({
   amountText,
   children,
 }: ChoiceCardProps) {
-  const color = splitColor(colorIndex);
-
   return (
     <div
       className={classes(
@@ -114,10 +108,7 @@ function ChoiceCard({
               checked={on}
               onChange={onToggle}
               aria-describedby={describedBy}
-              className={classes(
-                color.text,
-                "relative z-10 mt-0.5 h-5 w-5 flex-none cursor-pointer rounded-sm border-slate-400 checked:border-transparent focus:ring-primary-600",
-              )}
+              className="relative z-10 mt-0.5 h-5 w-5 flex-none cursor-pointer rounded-sm border-slate-400 text-primary-600 checked:border-transparent focus:ring-primary-600"
             />
             <span className="min-w-0 flex-1 text-base leading-6 font-semibold text-slate-900">
               {title}
@@ -132,7 +123,7 @@ function ChoiceCard({
         >
           <span
             className={classes(
-              on ? color.text : "text-slate-500",
+              on ? "text-primary-700" : "text-slate-500",
               "block text-lg leading-6 font-bold",
             )}
           >
@@ -178,17 +169,15 @@ export default function CauseChooser({
 
   // Every choice in the split bar's order: the causes, then support.
   const choices = [
-    ...causes.data.map((cause, index) => ({
+    ...causes.data.map((cause) => ({
       key: cause.id,
       label: cause.title ?? "",
-      colorIndex: index,
     })),
     ...(supportOrganization
       ? [
           {
             key: SUPPORT_KEY,
             label: texts.support ?? "",
-            colorIndex: causes.data.length,
           },
         ]
       : []),
@@ -248,98 +237,94 @@ export default function CauseChooser({
           {texts.hint}
         </Markdown>
       )}
-      {amounts.causes.map(
-        ({ cause, amount: causeAmount, organizations }, index) => {
-          const on = chosen.includes(cause.id);
-          const custom = on && !fundOnly(cause);
-          const descriptionId = `${idPrefix}-cause-${cause.id}-description`;
-          const pickerButton = (text: string | null, className: string) => (
-            <button
-              type="button"
-              onClick={() => setPickerCause(cause.id)}
-              aria-label={`${text ?? ""}: ${cause.title ?? ""}`}
-              className={classes(
-                "relative cursor-pointer py-2.5 text-[13px] leading-[18px] font-semibold text-primary-700 underline hover:opacity-70",
-                className,
-              )}
-            >
-              {text}
-            </button>
-          );
-          return (
-            <ChoiceCard
-              key={cause.id}
-              inputId={`${idPrefix}-cause-${cause.id}`}
-              on={on}
-              onToggle={() => toggle(cause.id)}
-              colorIndex={index}
-              title={cause.title}
-              // The cause's short description while unticked, the button to
-              // its charities once ticked, in one place: as tall as the
-              // taller of the two either way, so ticking doesn't move a thing.
-              below={
-                !custom && (
-                  <div className="grid self-stretch">
-                    {cause.shortDescription && (
-                      <p
-                        id={descriptionId}
-                        className={classes(
-                          on ? "invisible" : "",
-                          "col-start-1 row-start-1 mt-0.5 ml-8 text-[13px] leading-[18px] text-slate-500",
-                        )}
-                      >
-                        {cause.shortDescription}
-                      </p>
-                    )}
-                    {pickerButton(
-                      texts.specifyCharities,
-                      classes(
-                        on ? "" : "invisible",
-                        "col-start-1 row-start-1 -mt-1.5 -mb-2.5 ml-8 justify-self-start",
-                      ),
-                    )}
-                  </div>
-                )
-              }
-              describedBy={
-                !custom && cause.shortDescription ? descriptionId : undefined
-              }
-              share={proportions.getProportion(cause.id)}
-              // With charities chosen, their amounts are listed instead.
-              amountText={
-                custom ? null : on ? money(causeAmount) : texts.notChosen
-              }
-            >
-              {custom && (
-                <div className="flex flex-col gap-1 pr-3.5 pb-2.5 pl-[46px] xs:pr-4 xs:pl-12">
-                  <ul className="flex flex-col gap-1 text-[13px] leading-[18px]">
-                    {organizations.map(({ organization, amount: part }) => (
-                      <li
-                        key={organization.internalId}
-                        className="flex justify-between gap-3"
-                      >
-                        <span className="min-w-0 font-medium text-slate-900">
-                          {organization.title}
-                        </span>
-                        <span className="flex-none font-semibold whitespace-nowrap text-slate-700">
-                          {money(part)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                  {pickerButton(texts.editCharities, "-mt-1 -mb-2 self-start")}
+      {amounts.causes.map(({ cause, amount: causeAmount, organizations }) => {
+        const on = chosen.includes(cause.id);
+        const custom = on && !fundOnly(cause);
+        const descriptionId = `${idPrefix}-cause-${cause.id}-description`;
+        const pickerButton = (text: string | null, className: string) => (
+          <button
+            type="button"
+            onClick={() => setPickerCause(cause.id)}
+            aria-label={`${text ?? ""}: ${cause.title ?? ""}`}
+            className={classes(
+              "relative cursor-pointer py-2.5 text-[13px] leading-[18px] font-semibold text-primary-700 underline hover:opacity-70",
+              className,
+            )}
+          >
+            {text}
+          </button>
+        );
+        return (
+          <ChoiceCard
+            key={cause.id}
+            inputId={`${idPrefix}-cause-${cause.id}`}
+            on={on}
+            onToggle={() => toggle(cause.id)}
+            title={cause.title}
+            // The cause's short description while unticked, the button to
+            // its charities once ticked, in one place: as tall as the
+            // taller of the two either way, so ticking doesn't move a thing.
+            below={
+              !custom && (
+                <div className="grid self-stretch">
+                  {cause.shortDescription && (
+                    <p
+                      id={descriptionId}
+                      className={classes(
+                        on ? "invisible" : "",
+                        "col-start-1 row-start-1 mt-0.5 ml-8 text-[13px] leading-[18px] text-slate-500",
+                      )}
+                    >
+                      {cause.shortDescription}
+                    </p>
+                  )}
+                  {pickerButton(
+                    texts.specifyCharities,
+                    classes(
+                      on ? "" : "invisible",
+                      "col-start-1 row-start-1 -mt-1.5 -mb-2.5 ml-8 justify-self-start",
+                    ),
+                  )}
                 </div>
-              )}
-            </ChoiceCard>
-          );
-        },
-      )}
+              )
+            }
+            describedBy={
+              !custom && cause.shortDescription ? descriptionId : undefined
+            }
+            share={proportions.getProportion(cause.id)}
+            // With charities chosen, their amounts are listed instead.
+            amountText={
+              custom ? null : on ? money(causeAmount) : texts.notChosen
+            }
+          >
+            {custom && (
+              <div className="flex flex-col gap-1 pr-3.5 pb-2.5 pl-[46px] xs:pr-4 xs:pl-12">
+                <ul className="flex flex-col gap-1 text-[13px] leading-[18px]">
+                  {organizations.map(({ organization, amount: part }) => (
+                    <li
+                      key={organization.internalId}
+                      className="flex justify-between gap-3"
+                    >
+                      <span className="min-w-0 font-medium text-slate-900">
+                        {organization.title}
+                      </span>
+                      <span className="flex-none font-semibold whitespace-nowrap text-slate-700">
+                        {money(part)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {pickerButton(texts.editCharities, "-mt-1 -mb-2 self-start")}
+              </div>
+            )}
+          </ChoiceCard>
+        );
+      })}
       {supportOrganization && (
         <ChoiceCard
           inputId={supportInputId}
           on={supportOn}
           onToggle={() => toggle(SUPPORT_KEY)}
-          colorIndex={causes.data.length}
           title={texts.support}
           below={
             texts.supportDescription && (
@@ -383,7 +368,6 @@ export default function CauseChooser({
               label,
               share: proportions.getProportion(key),
             }))}
-            colorIndexes={chosenChoices.map(({ colorIndex }) => colorIndex)}
             onChange={(shares) =>
               setProportions(
                 proportions.withShares(
