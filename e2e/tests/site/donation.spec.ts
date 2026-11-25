@@ -346,7 +346,10 @@ test.describe("where the donation goes", () => {
   test("ticks a cause or a charity from anywhere on its card", async ({
     page,
   }) => {
-    await page.goto("/anneta");
+    // Once the page's code has all come and the form works. Until then, the
+    // card is the server's: once it works, the form is made anew (to pick up
+    // a draft), so a card measured or ticked before that can be gone.
+    await page.goto("/anneta", { waitUntil: "networkidle" });
     const f = form(page);
     // Its padding, above the box and the title.
     const card = f.causeCard(HEALTH);
