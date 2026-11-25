@@ -19,7 +19,6 @@ import { choose, clickToOpen } from "../../helpers/page.ts";
 const HEALTH = CAUSES.health.title;
 const CLIMATE = CAUSES.climate.title;
 
-/** Moves the split bar's first border this many percent to the right. */
 /** Where an element is on the page, which it has to be. */
 async function box(locator: Locator) {
   const found = await locator.boundingBox();
@@ -27,6 +26,7 @@ async function box(locator: Locator) {
   return found;
 }
 
+/** Moves the split bar's first border this many percent to the right. */
 async function moveFirstBorder(page: Page, percent: number) {
   const border = form(page).borders.first();
   await border.focus();
@@ -508,6 +508,71 @@ test.describe("the form", () => {
     await f.editDonation.click();
     await expect(f.next).toBeVisible();
     await expect(page.locator("body[data-same]")).toHaveCount(1);
+  });
+
+  test("stays on the details when Skip to content jumps to them", async ({
+    page,
+  }) => {
+    await page.goto("/anneta");
+    const f = form(page);
+    await choose(f.choice(HEALTH));
+    await f.next.click();
+    await expect(f.firstName).toBeVisible();
+    // The page's first stop for Tab: a jump to #main, an entry of its own.
+    const skip = page.getByRole("link", { name: "Liigu sisu juurde" });
+    await skip.focus();
+    await skip.press("Enter");
+    await expect(page).toHaveURL(/#main$/);
+    await expect(f.firstName).toBeVisible();
+    // Back from it to the details, and from them to the donation.
+    await page.goBack();
+    await expect(f.firstName).toBeVisible();
+    await page.goBack();
+    await expect(f.next).toBeVisible();
+  });
+
+  test("takes one Back to the donation, after going on twice", async ({
+    page,
+  }) => {
+    await page.goto("/anneta");
+    const f = form(page);
+    await choose(f.choice(HEALTH));
+    await f.next.click();
+    await expect(f.firstName).toBeVisible();
+    await page.goBack();
+    await f.choice(HEALTH).click();
+    await expect(f.choice(HEALTH)).not.toBeChecked();
+    // Forward with nothing chosen stays on the donation, on the details'
+    // entry: going on from there doesn't make another.
+    await page.goForward();
+    await expect(f.next).toBeDisabled();
+    await choose(f.choice(HEALTH));
+    await f.next.click();
+    await expect(f.firstName).toBeVisible();
+    await f.back.click();
+    await expect(f.next).toBeVisible();
+    await expect(f.firstName).toBeHidden();
+  });
+
+  test("goes on to the details with Enter, once a cause is chosen", async ({
+    page,
+  }) => {
+    await page.goto("/anneta");
+    const f = form(page);
+    await choose(f.otherAmount);
+    await f.otherAmountInput.fill("25");
+    await f.otherAmountInput.press("Enter");
+    await expect(f.next).toBeDisabled();
+
+    await choose(f.choice(HEALTH));
+    await f.otherAmountInput.press("Enter");
+    await expect(f.firstName).toBeVisible();
+
+    // On a narrow screen too, where Next ends the form instead.
+    await f.back.click();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await f.otherAmountInput.press("Enter");
+    await expect(f.firstName).toBeVisible();
   });
 
   test("keeps what's being typed when the window narrows past wide", async ({

@@ -8,7 +8,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { at } from "@/utils/object";
+import { at, isRecord } from "@/utils/object";
 import AmountChooser from "../elements/forms/AmountChooser";
 import DonationTypeChooser from "../elements/forms/DonationTypeChooser";
 import Button from "../elements/Button";
@@ -63,6 +63,11 @@ interface DonationSectionProps extends StrapiDonationSection {
   page: StrapiPage;
 }
 
+/** A label without the note in brackets at its end, as "(optional)". */
+function withoutNote(label: string | null) {
+  return label?.replace(/\s*\([^)]*\)\s*$/, "") ?? null;
+}
+
 /**
  * The donation form. A link can choose one-off giving (?type=onetime) and an
  * organization to give to (?org=). Pages are served from a cache, so the
@@ -75,11 +80,6 @@ interface DonationSectionProps extends StrapiDonationSection {
  * The browser's form is also the one that keeps a draft (see
  * utils/donation-draft) and picks it up again.
  */
-/** A label without the note in brackets at its end, as "(optional)". */
-function withoutNote(label: string | null) {
-  return label?.replace(/\s*\([^)]*\)\s*$/, "") ?? null;
-}
-
 export default function DonationSection(props: DonationSectionProps) {
   return (
     <Suspense
@@ -98,6 +98,10 @@ export default function DonationSection(props: DonationSectionProps) {
 }
 
 const neverChanges = () => () => {};
+
+/** Whether a history entry is the details step's, from its state. */
+const isDetailsEntry = (state: unknown) =>
+  isRecord(state) && state.donationStage === 1;
 
 function DonationFormForLink(props: DonationSectionProps) {
   const searchParams = useSearchParams();
@@ -310,21 +314,30 @@ function DonationForm({
   });
   useEffect(() => {
     const onPopState = (event: PopStateEvent) => {
-      const state: { donationStage?: number } | null = event.state;
-      setStage(state?.donationStage === 1 && canGoOn.current ? 1 : 0);
+      const state: unknown = event.state;
+      // An entry with no state isn't a step's, nor Next.js's: a jump within
+      // the page made it, as "Skip to content" to #main does. The step stays
+      // as it is. (Next.js's own handler leaves these alone too.)
+      if (state === null) return;
+      setStage(isDetailsEntry(state) && canGoOn.current ? 1 : 0);
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
+  // Its entry only once: on it already (forward to it with nothing chosen
+  // stays on the donation), another would make Back take two presses.
   const toDetails = () => {
-    window.history.pushState({ donationStage: 1 }, "");
+    const state: unknown = window.history.state;
+    if (!isDetailsEntry(state)) {
+      window.history.pushState({ donationStage: 1 }, "");
+    }
     setStage(1);
   };
   // Back through the history when the details have their entry there (not
   // when a draft opened the form on them), to stay in step with its buttons.
   const backToDonation = () => {
-    const state: { donationStage?: number } | null = window.history.state;
-    if (state?.donationStage === 1) window.history.back();
+    const state: unknown = window.history.state;
+    if (isDetailsEntry(state)) window.history.back();
     else setStage(0);
   };
 
@@ -337,6 +350,7 @@ function DonationForm({
     sectionRef.current?.scrollIntoView({ block: "start" });
   }, [stage]);
   const paymentTitleId = useId();
+  const donationFormId = useId();
 
   // Support for the platform, added on top: 5% of the donation unless the
   // donor chooses more.
@@ -580,23 +594,29 @@ function DonationForm({
     </div>
   );
 
-  // On to the details: until a cause is chosen, disabled, with what's
-  // missing said under it.
+  // On to the details, with Next or Enter in the form, once a cause is
+  // chosen.
+  const goOn = () => {
+    if (!stageValidity[0]) return;
+    track("donation-form:step-opened", {
+      step: "info",
+      type: donation.type,
+    });
+    toDetails();
+  };
+
+  // Until a cause is chosen, disabled, with what's missing said under it.
+  // The form's submit button, wherever it is, for Enter in the form to press:
+  // beside it in the summary on wide screens.
   const next = (
     <div className="mt-2 flex flex-col gap-2">
       <Button
         text={props.nextButtonText}
         type="primary"
         size="lg"
-        onClick={() => {
-          track("donation-form:step-opened", {
-            step: "info",
-            type: donation.type,
-          });
-          toDetails();
-        }}
         disabled={!stageValidity[0]}
-        buttonType="button"
+        buttonType="submit"
+        form={donationFormId}
       />
       {donation.proportions.chosenKeys().length === 0 && (
         <p className="text-center text-sm text-slate-500">
@@ -727,8 +747,12 @@ function DonationForm({
       {!donated && stage === 0 && (
         <div className="flex w-full max-w-lg flex-col gap-8 lg:grid lg:max-w-5xl lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-12">
           <form
+            id={donationFormId}
             className={classes(formClasses, "lg:pt-16 lg:pb-32")}
-            onSubmit={(event) => event.preventDefault()}
+            onSubmit={(event) => {
+              event.preventDefault();
+              goOn();
+            }}
           >
             <h2 className="text-2xl font-bold tracking-tight text-primary-700 sm:text-3xl">
               {props.title}

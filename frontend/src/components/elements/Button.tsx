@@ -20,6 +20,8 @@ export interface ButtonProps {
   className?: string;
   children?: React.ReactNode;
   buttonType?: "button" | "submit" | "reset";
+  /** The id of the form it's for, when it isn't inside it. */
+  form?: string;
   /** Counts clicks as "button:clicked" with this id; from the CMS's "plausibleEvent" field */
   analyticsId?: string | null;
   disabled?: boolean;
@@ -38,6 +40,7 @@ export default function Button({
   className = "",
   children,
   buttonType = "button",
+  form,
   analyticsId,
   disabled,
   noIcon,
@@ -99,6 +102,7 @@ export default function Button({
   return (
     <button
       type={buttonType}
+      form={form}
       onClick={(event) => {
         if (analyticsId) track("button:clicked", { button: analyticsId });
         if (onClick) onClick(event);
