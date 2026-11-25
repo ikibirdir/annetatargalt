@@ -63,13 +63,12 @@ interface ChoiceCardProps {
   share: number;
   /** Under the share: its amount or "Not chosen"; none, when listed below. */
   amountText: string | null;
-  /** Under it all: the charities chosen, each with its amount. */
+  /** Under it all: where it goes, each with its amount. */
   children?: React.ReactNode;
 }
 
 /**
- * One of the choices: a cause, or support for the platform. It's the same
- * height ticked and unticked, so the list doesn't move as the donor chooses.
+ * One of the choices: a cause, or support for the platform.
  */
 function ChoiceCard({
   inputId,
@@ -210,12 +209,14 @@ export default function CauseChooser({
 
   // Just the cause's fund, as it starts: nothing to list. (The fund is the
   // organization marked as one, or else the first.)
+  const fundOf = (cause: StrapiCause) =>
+    (
+      cause.organizations.find((organization) => organization.fund) ??
+      cause.organizations[0]
+    )?.internalId;
   const fundOnly = (cause: StrapiCause) => {
     const organizations = proportions.get(cause.id).proportions?.chosenKeys();
-    const fund =
-      cause.organizations.find((organization) => organization.fund) ??
-      cause.organizations[0];
-    return organizations?.length === 1 && organizations[0] === fund?.internalId;
+    return organizations?.length === 1 && organizations[0] === fundOf(cause);
   };
 
   const picked = causes.data.find((cause) => cause.id === pickerCause);
@@ -237,9 +238,8 @@ export default function CauseChooser({
           {texts.hint}
         </Markdown>
       )}
-      {amounts.causes.map(({ cause, amount: causeAmount, organizations }) => {
+      {amounts.causes.map(({ cause, organizations }) => {
         const on = chosen.includes(cause.id);
-        const custom = on && !fundOnly(cause);
         const descriptionId = `${idPrefix}-cause-${cause.id}-description`;
         const pickerButton = (text: string | null, className: string) => (
           <button
@@ -261,43 +261,29 @@ export default function CauseChooser({
             on={on}
             onToggle={() => toggle(cause.id)}
             title={cause.title}
-            // The cause's short description while unticked, the button to
-            // its charities once ticked, in one place: as tall as the
-            // taller of the two either way, so ticking doesn't move a thing.
+            // The cause's short description while unticked; once ticked,
+            // where it goes instead, listed below.
             below={
-              !custom && (
-                <div className="grid self-stretch">
-                  {cause.shortDescription && (
-                    <p
-                      id={descriptionId}
-                      className={classes(
-                        on ? "invisible" : "",
-                        "col-start-1 row-start-1 mt-0.5 ml-8 text-[13px] leading-[18px] text-slate-500",
-                      )}
-                    >
-                      {cause.shortDescription}
-                    </p>
-                  )}
-                  {pickerButton(
-                    texts.specifyCharities,
-                    classes(
-                      on ? "" : "invisible",
-                      "col-start-1 row-start-1 -mt-1.5 -mb-2.5 ml-8 justify-self-start",
-                    ),
-                  )}
-                </div>
+              !on &&
+              cause.shortDescription && (
+                <p
+                  id={descriptionId}
+                  className="mt-0.5 ml-8 text-[13px] leading-[18px] text-slate-500"
+                >
+                  {cause.shortDescription}
+                </p>
               )
             }
             describedBy={
-              !custom && cause.shortDescription ? descriptionId : undefined
+              !on && cause.shortDescription ? descriptionId : undefined
             }
             share={proportions.getProportion(cause.id)}
-            // With charities chosen, their amounts are listed instead.
-            amountText={
-              custom ? null : on ? money(causeAmount) : texts.notChosen
-            }
+            // Once ticked, the amounts are listed with where they go.
+            amountText={on ? null : texts.notChosen}
           >
-            {custom && (
+            {/* Where it goes: the cause's fund, as it starts, or the
+                charities the donor picked, each with its amount. */}
+            {on && (
               <div className="flex flex-col gap-1 pr-3.5 pb-2.5 pl-[46px] xs:pr-4 xs:pl-12">
                 <ul className="flex flex-col gap-1 text-[13px] leading-[18px]">
                   {organizations.map(({ organization, amount: part }) => (
@@ -307,6 +293,13 @@ export default function CauseChooser({
                     >
                       <span className="min-w-0 font-medium text-slate-900">
                         {organization.title}
+                        {/* As in the window with the charities. */}
+                        {organization.internalId === fundOf(cause) &&
+                          texts.recommended && (
+                            <span className="font-normal opacity-50">
+                              {` (${texts.recommended})`}
+                            </span>
+                          )}
                       </span>
                       <span className="flex-none font-semibold whitespace-nowrap text-slate-700">
                         {money(part)}
@@ -314,7 +307,12 @@ export default function CauseChooser({
                     </li>
                   ))}
                 </ul>
-                {pickerButton(texts.editCharities, "-mt-1 -mb-2 self-start")}
+                {pickerButton(
+                  fundOnly(cause)
+                    ? texts.specifyCharities
+                    : texts.editCharities,
+                  "-mt-1 -mb-2 self-start",
+                )}
               </div>
             )}
           </ChoiceCard>
