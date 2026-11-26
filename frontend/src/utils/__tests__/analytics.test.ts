@@ -34,7 +34,12 @@ describe("track", () => {
     track("donation:submitted", {
       type: "recurring",
       amount: 20,
+      amount_preset: true,
       tip_percent: 0,
+      causes: 1,
+      charities: 1,
+      fund_only: true,
+      custom_split: false,
       payment_method: undefined,
       company: false,
       dedication: false,
@@ -44,7 +49,12 @@ describe("track", () => {
     expect(umami.track).toHaveBeenCalledWith("donation:submitted", {
       type: "recurring",
       amount: 20,
+      amount_preset: true,
       tip_percent: 0,
+      causes: 1,
+      charities: 1,
+      fund_only: true,
+      custom_split: false,
       company: false,
       dedication: false,
       from_link: true,
@@ -76,26 +86,15 @@ describe("track", () => {
     ],
     [
       () =>
-        track("donation-form:step-opened", {
-          step: "support",
-          type: "onetime",
-        }),
-      "donation-support-stage",
-    ],
-    [
-      () =>
-        track("donation-form:step-opened", {
-          step: "summary",
-          type: "onetime",
-        }),
-      "donation-summary-stage",
-    ],
-    [
-      () =>
         track("donation:submitted", {
           type: "onetime",
           amount: 20,
+          amount_preset: false,
           tip_percent: 5,
+          causes: 2,
+          charities: 3,
+          fund_only: false,
+          custom_split: true,
           payment_method: "card",
           company: false,
           dedication: false,
@@ -144,6 +143,46 @@ describe("track", () => {
 
     expect(plausible.mock.calls).toEqual([[oldName, { u: COUNTED_AS }]]);
   });
+
+  // Plausible would need a goal for each, and gets no properties: these
+  // are Umami's alone.
+  const newEvents: [string, () => void][] = [
+    [
+      "donation-form:started",
+      () => track("donation-form:started", { from_link: false }),
+    ],
+    [
+      "cause:toggled",
+      () => track("cause:toggled", { cause: "GW-TCF", chosen: true }),
+    ],
+    [
+      "charity-picker:opened",
+      () => track("charity-picker:opened", { cause: "GW-TCF" }),
+    ],
+    [
+      "charity-picker:confirmed",
+      () =>
+        track("charity-picker:confirmed", {
+          cause: "GW-TCF",
+          charities: 2,
+          fund_only: false,
+        }),
+    ],
+    [
+      "donation-split:changed",
+      () => track("donation-split:changed", { how: "moved" }),
+    ],
+    ["donation-form:went-back", () => track("donation-form:went-back")],
+  ];
+  it.each(newEvents)(
+    "sends %s to Umami only, as it came after Plausible's goals",
+    (name, send) => {
+      send();
+
+      expect(umami.track.mock.calls.map(([sent]) => sent)).toEqual([name]);
+      expect(plausible).not.toHaveBeenCalled();
+    },
+  );
 
   it("holds events from before the scripts ran until the page has loaded", () => {
     stubBrowser({ loaded: false, scripts: false });

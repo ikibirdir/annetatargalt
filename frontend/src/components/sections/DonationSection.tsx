@@ -56,7 +56,11 @@ import {
   saveDonationDraft,
 } from "@/utils/donation-draft";
 import type { DonationState } from "@/utils/donation-draft";
-import { splitChoices, supportShare } from "@/utils/donation-amounts";
+import {
+  splitChoices,
+  splitFacts,
+  supportShare,
+} from "@/utils/donation-amounts";
 
 interface DonationSectionProps extends StrapiDonationSection {
   global: StrapiGlobal;
@@ -177,6 +181,7 @@ function DonationForm({
   const choices = splitChoices(causes, supportOrganization);
 
   const link = `${linkType}/${linkOrg}`;
+  const fromLink = linkType !== null || linkOrg !== null;
   // A link that names one of the organizations starts with its cause chosen,
   // all of it going there. Otherwise nothing is chosen to begin with.
   const linksOrganization =
@@ -307,6 +312,20 @@ function DonationForm({
     keptDraft.current = draftJson;
   }, [keepsDraft, draftJson]);
 
+  // Started: the visitor's first change, or Next (a link can choose it all),
+  // once each time the form opens.
+  const started = useRef(false);
+  const start = () => {
+    if (started.current) return;
+    started.current = true;
+    track("donation-form:started", { from_link: fromLink });
+  };
+  const openedAs = useRef<string | null>(null);
+  useEffect(() => {
+    openedAs.current ??= draftJson;
+    if (draftJson !== openedAs.current) start();
+  });
+
   // Each step has its own entry in the browser's history, so its back
   // button goes back a step instead of leaving the form, and forward again.
   // (Next.js keeps its own state in an entry pushed like this, so the page
@@ -352,6 +371,16 @@ function DonationForm({
     scrolledStage.current = stage;
     sectionRef.current?.scrollIntoView({ block: "start" });
   }, [stage]);
+
+  // Back from the details, whichever way: either button or the browser's.
+  const trackedStage = useRef(stage);
+  useEffect(() => {
+    if (trackedStage.current === 1 && stage === 0) {
+      track("donation-form:went-back");
+    }
+    trackedStage.current = stage;
+  }, [stage]);
+
   const paymentTitleId = useId();
   const donationFormId = useId();
 
@@ -438,7 +467,11 @@ function DonationForm({
     track("donation:submitted", {
       type: donation.type,
       amount: donation.amount,
+      amount_preset: amountOptions.some(
+        ({ value }) => value === donation.amount,
+      ),
       tip_percent: supportShare(donation.proportions),
+      ...splitFacts(donation.proportions, causes, supportOrganization),
       payment_method: onetime
         ? donation.paymentMethod === "cardPayments"
           ? "card"
@@ -446,7 +479,7 @@ function DonationForm({
         : undefined,
       company: donation.companyDonation,
       dedication: onetime && donation.dedicateDonation,
-      from_link: linkType !== null || linkOrg !== null,
+      from_link: fromLink,
     });
   }
 
@@ -561,6 +594,7 @@ function DonationForm({
   // chosen.
   const goOn = () => {
     if (!stageValidity[0]) return;
+    start();
     track("donation-form:step-opened", {
       step: "info",
       type: donation.type,

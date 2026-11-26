@@ -4,7 +4,8 @@ import { PLAUSIBLE_EVENTS } from "./plausible-events";
 /**
  * Every event the site sends, and what it carries. Umami gets the event with
  * its properties; Plausible gets the names it has always had
- * (plausible-events.ts), since its plan has no properties.
+ * (plausible-events.ts), since its plan has no properties, and none for the
+ * events that came after it.
  *
  * - Names are `thing:action`: the thing on screen and a past-tense verb, both
  *   in kebab-case (`donation:paid`, `faq:expanded`). Names stay few and
@@ -25,17 +26,48 @@ export interface Events {
   "page:not-found": undefined;
 
   // The donation form
-  /** Its steps after the first, in order: the donor, the tip, the summary */
-  "donation-form:step-opened": {
-    step: "info" | "support" | "summary";
-    type: DonationType;
+  /**
+   * The visitor's first change to it, or Next, once each time it's opened:
+   * how many start giving, of those who see it.
+   */
+  "donation-form:started": { from_link: boolean };
+  /**
+   * A cause ticked or unticked, named by its fund's internal id (the same in
+   * both languages), or support for the platform, as "support"
+   */
+  "cause:toggled": { cause: string; chosen: boolean };
+  /** The window with a cause's charities, opened */
+  "charity-picker:opened": { cause: string };
+  /** The charities chosen in it, confirmed: how many, and if just the fund */
+  "charity-picker:confirmed": {
+    cause: string;
+    charities: number;
+    fund_only: boolean;
   };
+  /**
+   * The split between the causes and support: one of the split bar's
+   * handles let go of after moving it, or the split reset
+   */
+  "donation-split:changed": { how: "moved" | "reset" };
+  /** Its second step, the donor's details */
+  "donation-form:step-opened": { step: "info"; type: DonationType };
+  /** Back from the details to the first step, any way: a button, the browser's */
+  "donation-form:went-back": undefined;
   "donation:submitted": {
     type: DonationType;
-    /** Without the tip */
+    /** All of it, support for the platform included */
     amount: number;
-    /** The tip chosen, as a percentage of the amount: 0 without one */
+    /** One of the amounts the form offers, not one typed in */
+    amount_preset: boolean;
+    /** Support for the platform's share of the amount, in percent: 0 without it */
     tip_percent: number;
+    /** How many causes, and charities in them, it goes to */
+    causes: number;
+    charities: number;
+    /** Every cause to its fund alone, as the form starts them */
+    fund_only: boolean;
+    /** The split between the causes and support moved from where it starts */
+    custom_split: boolean;
     /** One-off donations only */
     payment_method?: "bank" | "card";
     company: boolean;
@@ -48,7 +80,8 @@ export interface Events {
   "recurring-donation:created": { amount: number };
   /**
    * A one-off donation paid, from either donation form. revenue and currency
-   * are what Umami's revenue report reads; revenue includes the tip.
+   * are what Umami's revenue report reads; revenue is all of it, support for
+   * the platform included.
    */
   "donation:paid": { revenue: number; currency: "EUR" };
 

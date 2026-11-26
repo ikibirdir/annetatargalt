@@ -12,8 +12,12 @@ import type { Locale } from "@/utils/locale";
 import {
   SUPPORT_KEY,
   amountsByCause,
+  causeName,
+  fundOf,
+  isFundOnly,
   supportShare,
 } from "@/utils/donation-amounts";
+import { track } from "@/utils/analytics";
 import { classes } from "@/utils/react";
 import { isStartingSplit, startingSplit, toggledShares } from "@/utils/split";
 
@@ -190,13 +194,16 @@ export default function CauseChooser({
   const supportIndex = keys.indexOf(SUPPORT_KEY);
   // Ticking or unticking keeps a split the donor adjusted, in proportion:
   // only Reset split (or Split evenly) starts it over. See toggledShares.
-  const toggle = (key: ProportionKey) =>
+  // `name` is what analytics calls it.
+  const toggle = (key: ProportionKey, name: string) => {
+    track("cause:toggled", { cause: name, chosen: !chosen.includes(key) });
     setProportions(
       proportions.withShares(
         keys,
         toggledShares(shares, keys.indexOf(key), supportIndex),
       ),
     );
+  };
   const startOver = () =>
     proportions.withShares(
       keys,
@@ -207,17 +214,9 @@ export default function CauseChooser({
     );
   const atStart = isStartingSplit(shares, supportIndex);
 
-  // Just the cause's fund, as it starts: nothing to list. (The fund is the
-  // organization marked as one, or else the first.)
-  const fundOf = (cause: StrapiCause) =>
-    (
-      cause.organizations.find((organization) => organization.fund) ??
-      cause.organizations[0]
-    )?.internalId;
-  const fundOnly = (cause: StrapiCause) => {
-    const organizations = proportions.get(cause.id).proportions?.chosenKeys();
-    return organizations?.length === 1 && organizations[0] === fundOf(cause);
-  };
+  // Just the cause's fund, as it starts.
+  const fundOnly = (cause: StrapiCause) =>
+    isFundOnly(cause, proportions.get(cause.id).proportions);
 
   const picked = causes.data.find((cause) => cause.id === pickerCause);
   const pickedProportions = picked && proportions.get(picked.id).proportions;
@@ -244,7 +243,10 @@ export default function CauseChooser({
         const pickerButton = (text: string | null, className: string) => (
           <button
             type="button"
-            onClick={() => setPickerCause(cause.id)}
+            onClick={() => {
+              track("charity-picker:opened", { cause: causeName(cause) });
+              setPickerCause(cause.id);
+            }}
             aria-label={`${text ?? ""}: ${cause.title ?? ""}`}
             className={classes(
               "relative cursor-pointer py-2.5 text-[13px] leading-[18px] font-semibold text-primary-700 underline hover:opacity-70",
@@ -259,7 +261,7 @@ export default function CauseChooser({
             key={cause.id}
             inputId={`${idPrefix}-cause-${cause.id}`}
             on={on}
-            onToggle={() => toggle(cause.id)}
+            onToggle={() => toggle(cause.id, causeName(cause))}
             title={cause.title}
             // The cause's short description while unticked; once ticked,
             // where it goes instead, listed below.
@@ -322,7 +324,7 @@ export default function CauseChooser({
         <ChoiceCard
           inputId={supportInputId}
           on={supportOn}
-          onToggle={() => toggle(SUPPORT_KEY)}
+          onToggle={() => toggle(SUPPORT_KEY, SUPPORT_KEY)}
           title={texts.support}
           below={
             texts.supportDescription && (
@@ -353,7 +355,10 @@ export default function CauseChooser({
             {!atStart && (
               <button
                 type="button"
-                onClick={() => setProportions(startOver())}
+                onClick={() => {
+                  track("donation-split:changed", { how: "reset" });
+                  setProportions(startOver());
+                }}
                 className="cursor-pointer py-1.5 text-sm font-semibold text-primary-700 underline hover:opacity-70"
               >
                 {supportOn ? texts.resetSplit : texts.splitEvenly}
@@ -374,6 +379,7 @@ export default function CauseChooser({
                 ),
               )
             }
+            onMoved={() => track("donation-split:changed", { how: "moved" })}
             locale={locale}
           />
           {texts.splitHint && (
@@ -411,6 +417,11 @@ export default function CauseChooser({
           }
           proportions={pickedProportions}
           onConfirm={(subs) => {
+            track("charity-picker:confirmed", {
+              cause: causeName(picked),
+              charities: subs.chosenKeys().length,
+              fund_only: isFundOnly(picked, subs),
+            });
             setProportions(proportions.withSubProportions(picked.id, subs));
             setPickerCause(null);
           }}

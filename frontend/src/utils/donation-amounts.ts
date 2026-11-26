@@ -1,5 +1,6 @@
 import type Proportions from "./proportions";
 import type { CauseData } from "./proportions";
+import { isStartingSplit } from "./split";
 import type { StrapiCause, StrapiOrganization } from "@/types/generated/strapi";
 
 /**
@@ -33,6 +34,71 @@ export function supportShare(proportions: Proportions): number {
   return proportions.keys().includes(SUPPORT_KEY)
     ? proportions.getProportion(SUPPORT_KEY)
     : 0;
+}
+
+/** A cause's fund: the organization marked as one, or else its first. */
+export const fundOf = (cause: CauseData) =>
+  (
+    cause.organizations.find((organization) => organization.fund) ??
+    cause.organizations[0]
+  )?.internalId;
+
+/**
+ * Whether a cause's split between its organizations is its fund alone, as
+ * it starts.
+ */
+export function isFundOnly(
+  cause: CauseData,
+  organizations: Proportions | undefined,
+) {
+  const chosen = organizations?.chosenKeys();
+  return chosen?.length === 1 && chosen[0] === fundOf(cause);
+}
+
+/**
+ * A cause as analytics names it: by its fund's internal id, which is the
+ * same in both languages, as the cause's own id and slug aren't.
+ */
+export const causeName = (cause: CauseData & { documentId: string }) =>
+  fundOf(cause) ?? cause.documentId;
+
+/**
+ * How a donation is split, as analytics records it: how many causes and
+ * charities it goes to (support for the platform aside), whether every cause
+ * goes to its fund alone, and whether the split between the choices was
+ * moved from the one it starts with.
+ */
+export function splitFacts(
+  proportions: Proportions,
+  causes: { data: CauseData[] },
+  supportOrganization: string | null,
+) {
+  const chosen = causes.data
+    .filter((cause) => proportions.chosenKeys().includes(cause.id))
+    .map((cause) => ({
+      cause,
+      organizations: proportions.get(cause.id).proportions,
+    }));
+  const keys = splitChoices(causes, supportOrganization).data.map(
+    ({ id }) => id,
+  );
+  return {
+    causes: chosen.length,
+    charities: chosen.reduce(
+      (sum, { organizations }) =>
+        sum + (organizations?.chosenKeys().length ?? 0),
+      0,
+    ),
+    fund_only:
+      chosen.length > 0 &&
+      chosen.every(({ cause, organizations }) =>
+        isFundOnly(cause, organizations),
+      ),
+    custom_split: !isStartingSplit(
+      keys.map((key) => proportions.getProportion(key)),
+      keys.indexOf(SUPPORT_KEY),
+    ),
+  };
 }
 
 export interface CauseAmount {

@@ -2,7 +2,8 @@ import type { EventArgs, Events } from "./analytics";
 
 /**
  * The names Plausible has always had for each event, so its dashboard keeps
- * counting the same goals beside Umami.
+ * counting the same goals beside Umami; none for the events that came after
+ * it, which only Umami counts.
  */
 export const PLAUSIBLE_EVENTS: {
   [E in keyof Events]: (...args: EventArgs<E>) => string[];
@@ -11,7 +12,13 @@ export const PLAUSIBLE_EVENTS: {
   "faq:expanded": ({ question }) => [question],
   "page:not-found": () => ["404"],
 
+  "donation-form:started": () => [],
+  "cause:toggled": () => [],
+  "charity-picker:opened": () => [],
+  "charity-picker:confirmed": () => [],
+  "donation-split:changed": () => [],
   "donation-form:step-opened": ({ step }) => [`donation-${step}-stage`],
+  "donation-form:went-back": () => [],
   "donation:submitted": () => ["donation-clicked"],
   "donation:failed": () => ["donation-error"],
   "recurring-donation:created": () => ["donation-recurring-created"],

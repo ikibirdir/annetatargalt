@@ -18,6 +18,11 @@ interface SplitBarProps {
   /** The chosen ones, in order, each with its share; two or more. */
   parts: SplitPart[];
   onChange: (shares: number[]) => void;
+  /**
+   * Once a handle that moved the split is let go of, or the key that moved
+   * it: one change, however many steps it took.
+   */
+  onMoved?: () => void;
   locale: Locale;
 }
 
@@ -28,13 +33,33 @@ interface SplitBarProps {
  * Handles are sliders for the keyboard too: arrows move by 1%, with Shift by
  * 5%.
  */
-export default function SplitBar({ parts, onChange, locale }: SplitBarProps) {
+export default function SplitBar({
+  parts,
+  onChange,
+  onMoved,
+  locale,
+}: SplitBarProps) {
   const barRef = useRef<HTMLDivElement>(null);
   // How far from its handle's centre the pointer took hold of it, so a drag
   // moves the border by as much as the pointer moves, and a press alone
   // (a tap, on a phone) doesn't move it at all.
   const grip = useRef(0);
+  // Whether the split moved since a handle was let go of.
+  const moved = useRef(false);
   const shares = parts.map(({ share }) => share);
+
+  function change(next: number[]) {
+    if (next.every((share, index) => share === shares[index])) return;
+    moved.current = true;
+    onChange(next);
+  }
+
+  function letGo() {
+    if (!moved.current) return;
+    moved.current = false;
+    onMoved?.();
+  }
+
   // Where each handle sits: the running total up to it.
   const borders = shares
     .slice(0, -1)
@@ -47,7 +72,7 @@ export default function SplitBar({ parts, onChange, locale }: SplitBarProps) {
     if (!bar) return;
     const { left, width } = bar.getBoundingClientRect();
     if (!width) return;
-    onChange(moveBorder(shares, index, ((clientX - left) / width) * 100));
+    change(moveBorder(shares, index, ((clientX - left) / width) * 100));
   }
 
   return (
@@ -109,6 +134,8 @@ export default function SplitBar({ parts, onChange, locale }: SplitBarProps) {
                 moveTo(index, event.clientX - grip.current);
               }
             }}
+            // On letting go, or the browser cancelling the drag.
+            onLostPointerCapture={letGo}
             onKeyDown={(event) => {
               const step = event.shiftKey ? 5 : 1;
               const moves: Record<string, number> = {
@@ -122,8 +149,9 @@ export default function SplitBar({ parts, onChange, locale }: SplitBarProps) {
               const position = moves[event.key];
               if (typeof position !== "number") return;
               event.preventDefault();
-              onChange(moveBorder(shares, index, position));
+              change(moveBorder(shares, index, position));
             }}
+            onKeyUp={letGo}
           >
             {/* In the site's sliders' dark green. */}
             <span className="block h-full w-3.5 rounded-lg bg-primary-600 shadow-md" />
